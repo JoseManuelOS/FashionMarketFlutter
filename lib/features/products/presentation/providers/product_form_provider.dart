@@ -52,7 +52,7 @@ class ProductForm extends _$ProductForm {
     required double price,
     String? imageUrl,
     String? categoryId,
-    int stockQuantity = 0,
+    int stock = 0,
   }) async {
     state = state.copyWith(status: ProductFormStatus.loading);
 
@@ -62,11 +62,11 @@ class ProductForm extends _$ProductForm {
       final newProduct = ProductModel(
         id: '', // Supabase generará el ID
         name: name,
+        slug: name.toLowerCase().replaceAll(' ', '-'),
         description: description,
         price: price,
-        imageUrl: imageUrl,
         categoryId: categoryId,
-        stockQuantity: stockQuantity,
+        stock: stock,
       );
 
       final createdProduct = await repository.createProduct(newProduct);

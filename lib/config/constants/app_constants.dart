@@ -6,15 +6,12 @@ class AppConstants {
   static const String appName = 'Fashion Market';
   static const String appVersion = '1.0.0';
 
-  // API & Backend
-  static const String supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://your-project.supabase.co',
-  );
-  static const String supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'your-anon-key',
-  );
+  // API & Backend - Supabase credentials from FashionStore
+  static const String supabaseUrl = 'https://sjalsswfvoshyppbbhtv.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNqYWxzc3dmdm9zaHlwcGJiaHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4NTQ3MzMsImV4cCI6MjA4MzQzMDczM30.5HLqcZmKTkoDbwbVnBPxTkdt95QD7nly2m7NscjaCjU';
+
+  // FashionStore API (backend desplegado)
+  static const String fashionStoreBaseUrl = 'http://j4o0084kg0ssoo0wc0ocw0g8.victoriafp.online';
 
   // Storage Keys
   static const String authTokenKey = 'auth_token';

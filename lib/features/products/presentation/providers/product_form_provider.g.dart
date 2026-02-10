@@ -6,7 +6,7 @@ part of 'product_form_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$productFormHash() => r'929c04b36549d985a0e0a7fdfffe686de7f6c756';
+String _$productFormHash() => r'd8903109d261ee616ab1e8cca945b4f41e3f382d';
 
 /// Provider para manejar el formulario de productos (crear/editar)
 ///
@@ -14,14 +14,13 @@ String _$productFormHash() => r'929c04b36549d985a0e0a7fdfffe686de7f6c756';
 @ProviderFor(ProductForm)
 final productFormProvider =
     AutoDisposeNotifierProvider<ProductForm, ProductFormState>.internal(
-      ProductForm.new,
-      name: r'productFormProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$productFormHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+  ProductForm.new,
+  name: r'productFormProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$productFormHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
 
 typedef _$ProductForm = AutoDisposeNotifier<ProductFormState>;
 // ignore_for_file: type=lint

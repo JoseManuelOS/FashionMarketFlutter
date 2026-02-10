@@ -1,4 +1,3 @@
-import 'package:animated_path/animated_path.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

@@ -48,16 +48,24 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
 
       var query = _supabaseClient
           .from(_tableName)
-          .select()
-          .eq('available', true)
+          .select('''
+            *,
+            category:categories(*),
+            images:product_images(*)
+          ''')
+          .eq('active', true)
           .order('created_at', ascending: false)
           .range(start, end);
 
       if (categoryId != null) {
         query = _supabaseClient
             .from(_tableName)
-            .select()
-            .eq('available', true)
+            .select('''
+              *,
+              category:categories(*),
+              images:product_images(*)
+            ''')
+            .eq('active', true)
             .eq('category_id', categoryId)
             .order('created_at', ascending: false)
             .range(start, end);
@@ -81,11 +89,36 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   @override
   Future<ProductModel> getProductById(String id) async {
     try {
-      final response = await _supabaseClient
-          .from(_tableName)
-          .select()
-          .eq('id', id)
-          .single();
+      // Intentar buscar por ID (UUID) o por slug
+      dynamic response;
+      
+      // Verificar si es un UUID válido
+      final uuidRegex = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+      );
+      
+      if (uuidRegex.hasMatch(id)) {
+        response = await _supabaseClient
+            .from(_tableName)
+            .select('''
+              *,
+              category:categories(*),
+              images:product_images(*)
+            ''')
+            .eq('id', id)
+            .single();
+      } else {
+        // Buscar por slug
+        response = await _supabaseClient
+            .from(_tableName)
+            .select('''
+              *,
+              category:categories(*),
+              images:product_images(*)
+            ''')
+            .eq('slug', id)
+            .single();
+      }
 
       return ProductModel.fromJson(response);
     } on PostgrestException catch (e) {
@@ -107,9 +140,13 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     try {
       final response = await _supabaseClient
           .from(_tableName)
-          .select()
+          .select('''
+            *,
+            category:categories(*),
+            images:product_images(*)
+          ''')
           .ilike('name', '%$query%')
-          .eq('available', true)
+          .eq('active', true)
           .order('name')
           .limit(50);
 

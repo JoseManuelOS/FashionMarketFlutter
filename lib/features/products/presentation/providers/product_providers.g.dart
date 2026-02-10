@@ -14,14 +14,13 @@ String _$productListHash() => r'1533db289b64ce7f4aba151ea371dfaf8cf6d90a';
 @ProviderFor(ProductList)
 final productListProvider =
     AutoDisposeAsyncNotifierProvider<ProductList, List<ProductModel>>.internal(
-      ProductList.new,
-      name: r'productListProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$productListHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+  ProductList.new,
+  name: r'productListProvider',
+  debugGetCreateSourceHash:
+      const bool.fromEnvironment('dart.vm.product') ? null : _$productListHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
 
 typedef _$ProductList = AutoDisposeAsyncNotifier<List<ProductModel>>;
 String _$productDetailHash() => r'3b333a7865985830fa271f05bb917f9d67b0d845';
@@ -51,7 +50,9 @@ abstract class _$ProductDetail
     extends BuildlessAutoDisposeAsyncNotifier<ProductModel> {
   late final String productId;
 
-  FutureOr<ProductModel> build(String productId);
+  FutureOr<ProductModel> build(
+    String productId,
+  );
 }
 
 /// Provider para los detalles de un producto específico
@@ -72,15 +73,21 @@ class ProductDetailFamily extends Family<AsyncValue<ProductModel>> {
   /// Provider para los detalles de un producto específico
   ///
   /// Copied from [ProductDetail].
-  ProductDetailProvider call(String productId) {
-    return ProductDetailProvider(productId);
+  ProductDetailProvider call(
+    String productId,
+  ) {
+    return ProductDetailProvider(
+      productId,
+    );
   }
 
   @override
   ProductDetailProvider getProviderOverride(
     covariant ProductDetailProvider provider,
   ) {
-    return call(provider.productId);
+    return call(
+      provider.productId,
+    );
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -106,19 +113,21 @@ class ProductDetailProvider
   /// Provider para los detalles de un producto específico
   ///
   /// Copied from [ProductDetail].
-  ProductDetailProvider(String productId)
-    : this._internal(
-        () => ProductDetail()..productId = productId,
-        from: productDetailProvider,
-        name: r'productDetailProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$productDetailHash,
-        dependencies: ProductDetailFamily._dependencies,
-        allTransitiveDependencies:
-            ProductDetailFamily._allTransitiveDependencies,
-        productId: productId,
-      );
+  ProductDetailProvider(
+    String productId,
+  ) : this._internal(
+          () => ProductDetail()..productId = productId,
+          from: productDetailProvider,
+          name: r'productDetailProvider',
+          debugGetCreateSourceHash:
+              const bool.fromEnvironment('dart.vm.product')
+                  ? null
+                  : _$productDetailHash,
+          dependencies: ProductDetailFamily._dependencies,
+          allTransitiveDependencies:
+              ProductDetailFamily._allTransitiveDependencies,
+          productId: productId,
+        );
 
   ProductDetailProvider._internal(
     super._createNotifier, {
@@ -133,8 +142,12 @@ class ProductDetailProvider
   final String productId;
 
   @override
-  FutureOr<ProductModel> runNotifierBuild(covariant ProductDetail notifier) {
-    return notifier.build(productId);
+  FutureOr<ProductModel> runNotifierBuild(
+    covariant ProductDetail notifier,
+  ) {
+    return notifier.build(
+      productId,
+    );
   }
 
   @override
@@ -155,7 +168,7 @@ class ProductDetailProvider
 
   @override
   AutoDisposeAsyncNotifierProviderElement<ProductDetail, ProductModel>
-  createElement() {
+      createElement() {
     return _ProductDetailProviderElement(this);
   }
 
@@ -195,7 +208,9 @@ abstract class _$ProductSearch
     extends BuildlessAutoDisposeAsyncNotifier<List<ProductModel>> {
   late final String query;
 
-  FutureOr<List<ProductModel>> build(String query);
+  FutureOr<List<ProductModel>> build(
+    String query,
+  );
 }
 
 /// Provider para la búsqueda de productos
@@ -216,15 +231,21 @@ class ProductSearchFamily extends Family<AsyncValue<List<ProductModel>>> {
   /// Provider para la búsqueda de productos
   ///
   /// Copied from [ProductSearch].
-  ProductSearchProvider call(String query) {
-    return ProductSearchProvider(query);
+  ProductSearchProvider call(
+    String query,
+  ) {
+    return ProductSearchProvider(
+      query,
+    );
   }
 
   @override
   ProductSearchProvider getProviderOverride(
     covariant ProductSearchProvider provider,
   ) {
-    return call(provider.query);
+    return call(
+      provider.query,
+    );
   }
 
   static const Iterable<ProviderOrFamily>? _dependencies = null;
@@ -245,28 +266,26 @@ class ProductSearchFamily extends Family<AsyncValue<List<ProductModel>>> {
 /// Provider para la búsqueda de productos
 ///
 /// Copied from [ProductSearch].
-class ProductSearchProvider
-    extends
-        AutoDisposeAsyncNotifierProviderImpl<
-          ProductSearch,
-          List<ProductModel>
-        > {
+class ProductSearchProvider extends AutoDisposeAsyncNotifierProviderImpl<
+    ProductSearch, List<ProductModel>> {
   /// Provider para la búsqueda de productos
   ///
   /// Copied from [ProductSearch].
-  ProductSearchProvider(String query)
-    : this._internal(
-        () => ProductSearch()..query = query,
-        from: productSearchProvider,
-        name: r'productSearchProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$productSearchHash,
-        dependencies: ProductSearchFamily._dependencies,
-        allTransitiveDependencies:
-            ProductSearchFamily._allTransitiveDependencies,
-        query: query,
-      );
+  ProductSearchProvider(
+    String query,
+  ) : this._internal(
+          () => ProductSearch()..query = query,
+          from: productSearchProvider,
+          name: r'productSearchProvider',
+          debugGetCreateSourceHash:
+              const bool.fromEnvironment('dart.vm.product')
+                  ? null
+                  : _$productSearchHash,
+          dependencies: ProductSearchFamily._dependencies,
+          allTransitiveDependencies:
+              ProductSearchFamily._allTransitiveDependencies,
+          query: query,
+        );
 
   ProductSearchProvider._internal(
     super._createNotifier, {
@@ -284,7 +303,9 @@ class ProductSearchProvider
   FutureOr<List<ProductModel>> runNotifierBuild(
     covariant ProductSearch notifier,
   ) {
-    return notifier.build(query);
+    return notifier.build(
+      query,
+    );
   }
 
   @override
@@ -305,7 +326,7 @@ class ProductSearchProvider
 
   @override
   AutoDisposeAsyncNotifierProviderElement<ProductSearch, List<ProductModel>>
-  createElement() {
+      createElement() {
     return _ProductSearchProviderElement(this);
   }
 
@@ -332,17 +353,12 @@ mixin ProductSearchRef
 }
 
 class _ProductSearchProviderElement
-    extends
-        AutoDisposeAsyncNotifierProviderElement<
-          ProductSearch,
-          List<ProductModel>
-        >
-    with ProductSearchRef {
+    extends AutoDisposeAsyncNotifierProviderElement<ProductSearch,
+        List<ProductModel>> with ProductSearchRef {
   _ProductSearchProviderElement(super.provider);
 
   @override
   String get query => (origin as ProductSearchProvider).query;
 }
-
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

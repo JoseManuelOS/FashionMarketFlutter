@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/router/app_router.dart';
+import 'config/storage/hive_config.dart';
 import 'config/theme/app_theme.dart';
 import 'shared/services/local_storage_service.dart';
 import 'shared/services/supabase_service.dart';
@@ -10,8 +12,12 @@ import 'shared/services/supabase_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializar formatos de fecha para español
+  await initializeDateFormatting('es_ES', null);
+
   // Inicializar servicios
   await SupabaseService.initialize();
+  await HiveConfig.init();
   final sharedPreferences = await SharedPreferences.getInstance();
 
   runApp(
