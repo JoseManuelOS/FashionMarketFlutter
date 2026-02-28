@@ -1529,6 +1529,74 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
         children: [
           _buildSectionTitle('Estado del pedido'),
           const SizedBox(height: 12),
+
+          // ── Botones rápidos para gestionar devolución solicitada ──────────
+          if (currentStatus == 'return_requested') ...[  
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.assignment_return, color: Colors.amber, size: 17),
+                      SizedBox(width: 8),
+                      Text(
+                        'Solicitud de devolución pendiente',
+                        style: TextStyle(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showConfirmDialog(
+                            title: 'Rechazar devolución',
+                            message: '¿Rechazar la solicitud de devolución? El pedido volverá a estado "Entregado".',
+                            onConfirm: () => widget.onUpdateStatus(widget.order['id'], 'delivered'),
+                          ),
+                          icon: Icon(Icons.close, size: 15, color: Colors.red[400]),
+                          label: Text('Rechazar', style: TextStyle(color: Colors.red[400], fontSize: 13)),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showConfirmDialog(
+                            title: 'Aceptar devolución',
+                            message: '¿Aceptar la devolución completa? Se procesará el reembolso completo al cliente.',
+                            onConfirm: () => widget.onUpdateStatus(widget.order['id'], 'returned'),
+                          ),
+                          icon: const Icon(Icons.check_circle_outline, size: 15),
+                          label: const Text('Aceptar', style: TextStyle(fontSize: 13)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           DropdownButtonFormField<String>(
             value: currentStatus,
             dropdownColor: const Color(0xFF1A1A2E),
@@ -1857,18 +1925,26 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
   Widget _buildProductItem(dynamic item) {
     final colorName = item['color'] as String?;
+    final productImage = item['product_image'] as String?;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: 50,
+              height: 50,
               color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(8),
+              child: productImage != null && productImage.isNotEmpty
+                  ? Image.network(
+                      productImage,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.image, color: Colors.grey, size: 24),
+                    )
+                  : const Icon(Icons.image, color: Colors.grey, size: 24),
             ),
-            child: const Icon(Icons.image, color: Colors.grey),
           ),
           const SizedBox(width: 12),
           Expanded(

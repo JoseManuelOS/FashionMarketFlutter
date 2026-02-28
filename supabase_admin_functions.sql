@@ -855,7 +855,7 @@ DECLARE
   v_admin_exists BOOLEAN;
   v_result JSONB;
 BEGIN
-  SELECT EXISTS(SELECT 1 FROM admin_users WHERE email = p_admin_email AND is_active = true)
+  SELECT EXISTS(SELECT 1 FROM admins WHERE email = p_admin_email AND is_active = true)
   INTO v_admin_exists;
   
   IF NOT v_admin_exists THEN
@@ -925,7 +925,7 @@ DECLARE
   v_new_status TEXT;
 BEGIN
   -- Verificar admin
-  SELECT EXISTS(SELECT 1 FROM admin_users WHERE email = p_admin_email AND is_active = true)
+  SELECT EXISTS(SELECT 1 FROM admins WHERE email = p_admin_email AND is_active = true)
   INTO v_admin_exists;
   
   IF NOT v_admin_exists THEN
