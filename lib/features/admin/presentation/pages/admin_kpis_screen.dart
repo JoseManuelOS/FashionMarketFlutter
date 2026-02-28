@@ -7,6 +7,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
+import '../widgets/sales_chart_widget.dart';
 
 /// Pantalla de KPIs y Ventas - Dashboard Ejecutivo
 /// Equivalente a /admin/dashboard-ejecutivo en FashionStore
@@ -17,11 +18,10 @@ class AdminKpisScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final admin = ref.watch(adminSessionProvider);
     final statsAsync = ref.watch(adminDashboardStatsProvider);
-    final salesDataAsync = ref.watch(adminSalesLast7DaysProvider);
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -49,7 +49,7 @@ class AdminKpisScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
               ref.invalidate(adminDashboardStatsProvider);
-              ref.invalidate(adminSalesLast7DaysProvider);
+              ref.invalidate(adminSalesProvider);
             },
           ),
         ],
@@ -59,7 +59,7 @@ class AdminKpisScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF12121A),
         onRefresh: () async {
           ref.invalidate(adminDashboardStatsProvider);
-          ref.invalidate(adminSalesLast7DaysProvider);
+          ref.invalidate(adminSalesProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -96,8 +96,8 @@ class AdminKpisScreen extends ConsumerWidget {
 
               const SizedBox(height: 24),
 
-              // Ventas últimos 7 días (Gráfico)
-              _buildSalesChartSection(salesDataAsync, currencyFormat),
+              // Ventas (Gráfico mejorado con selector de período)
+              const SalesChartWidget(),
 
               const SizedBox(height: 24),
 
@@ -142,7 +142,7 @@ class AdminKpisScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF12121A),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           ),
           child: const Center(
             child: CircularProgressIndicator(
@@ -159,9 +159,9 @@ class AdminKpisScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: const Row(
         children: [
@@ -256,7 +256,7 @@ class AdminKpisScreen extends ConsumerWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +267,7 @@ class AdminKpisScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [color, color.withOpacity(0.5)],
+                colors: [color, color.withValues(alpha: 0.5)],
               ),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -278,7 +278,7 @@ class AdminKpisScreen extends ConsumerWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -344,228 +344,6 @@ class AdminKpisScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSalesChartSection(
-    AsyncValue<List<Map<String, dynamic>>> salesDataAsync,
-    NumberFormat currencyFormat,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF12121A),
-            const Color(0xFF18181F),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.neonCyan.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.show_chart,
-                  color: AppColors.neonCyan,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Ventas de los últimos 7 días',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          
-          salesDataAsync.when(
-            loading: () => const SizedBox(
-              height: 200,
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.neonCyan),
-              ),
-            ),
-            error: (e, _) => SizedBox(
-              height: 200,
-              child: Center(
-                child: Text(
-                  'Error al cargar datos de ventas',
-                  style: TextStyle(color: Colors.grey[500]),
-                ),
-              ),
-            ),
-            data: (salesData) => _buildSimpleBarChart(salesData, currencyFormat),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimpleBarChart(
-    List<Map<String, dynamic>> salesData,
-    NumberFormat currencyFormat,
-  ) {
-    if (salesData.isEmpty) {
-      return SizedBox(
-        height: 200,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.bar_chart, color: Colors.grey[600], size: 48),
-              const SizedBox(height: 12),
-              Text(
-                'No hay datos de ventas',
-                style: TextStyle(color: Colors.grey[500]),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Calcular el máximo para la escala
-    final maxValue = salesData
-        .map((e) => (e['total'] as num?)?.toDouble() ?? 0.0)
-        .reduce((a, b) => a > b ? a : b);
-    final scale = maxValue > 0 ? maxValue : 1;
-
-    return Column(
-      children: [
-        // Barras
-        SizedBox(
-          height: 180,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: salesData.map((data) {
-              final total = (data['total'] as num?)?.toDouble() ?? 0.0;
-              final date = data['date'] as String? ?? '';
-              final heightPercent = total / scale;
-              
-              // Parsear fecha
-              DateTime? parsedDate;
-              try {
-                parsedDate = DateTime.parse(date);
-              } catch (_) {}
-              
-              final dayName = parsedDate != null 
-                  ? DateFormat('EEE', 'es_ES').format(parsedDate).substring(0, 2)
-                  : '';
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Valor encima de la barra
-                      if (total > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            '€${total.toInt()}',
-                            style: const TextStyle(
-                              color: AppColors.neonCyan,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      // Barra
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 500),
-                        height: (heightPercent * 120).clamp(4.0, 120.0),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.neonCyan,
-                              AppColors.neonCyan.withOpacity(0.5),
-                            ],
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: total > 0
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.neonCyan.withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Día
-                      Text(
-                        dayName.toUpperCase(),
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Total de la semana
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.neonCyan.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.trending_up, color: AppColors.neonCyan, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Total semana: ',
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
-              ),
-              Text(
-                currencyFormat.format(
-                  salesData.fold<double>(
-                    0,
-                    (sum, item) => sum + ((item['total'] as num?)?.toDouble() ?? 0),
-                  ),
-                ),
-                style: const TextStyle(
-                  color: AppColors.neonCyan,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildQuickStatsPanel(
     BuildContext context,
     Map<String, dynamic> stats,
@@ -587,7 +365,7 @@ class AdminKpisScreen extends ConsumerWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
+        border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,8 +436,8 @@ class AdminKpisScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: isWarning
-                  ? Colors.amber.withOpacity(0.1)
-                  : AppColors.neonCyan.withOpacity(0.1),
+                  ? Colors.amber.withValues(alpha: 0.1)
+                  : AppColors.neonCyan.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -687,9 +465,9 @@ class AdminKpisScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.neonCyan.withOpacity(0.1),
+          color: AppColors.neonCyan.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
+          border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [

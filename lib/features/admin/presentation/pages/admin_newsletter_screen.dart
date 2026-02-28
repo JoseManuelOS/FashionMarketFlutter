@@ -1,14 +1,11 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../config/constants/app_constants.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
@@ -62,7 +59,7 @@ class _AdminNewsletterScreenState extends ConsumerState<AdminNewsletterScreen>
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -182,38 +179,32 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
     setState(() => _isSending = true);
 
     try {
-      final body = <String, dynamic>{
-        'subject': _subjectCtrl.text.trim(),
-        'content': _contentCtrl.text.trim(),
-        'headerTitle': _headerTitleCtrl.text.trim(),
-        'buttonText': _buttonTextCtrl.text.trim(),
-      };
-      if (_imageUrlCtrl.text.trim().isNotEmpty) {
-        body['imageUrl'] = _imageUrlCtrl.text.trim();
-      }
-      if (_promoCodeCtrl.text.trim().isNotEmpty) {
-        body['promoCode'] = _promoCodeCtrl.text.trim();
-      }
-      if (_promoDiscountCtrl.text.trim().isNotEmpty) {
-        body['promoDiscount'] = _promoDiscountCtrl.text.trim();
-      }
-      if (_buttonUrlCtrl.text.trim().isNotEmpty) {
-        body['buttonUrl'] = _buttonUrlCtrl.text.trim();
-      }
-
-      final response = await http.post(
-        Uri.parse(
-          '${AppConstants.fashionStoreBaseUrl}/api/email/send-newsletter',
-        ),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
+      final data = await FashionStoreApiService.sendNewsletter(
+        subject: _subjectCtrl.text.trim(),
+        content: _contentCtrl.text.trim(),
+        headerTitle: _headerTitleCtrl.text.trim().isNotEmpty
+            ? _headerTitleCtrl.text.trim()
+            : null,
+        imageUrl: _imageUrlCtrl.text.trim().isNotEmpty
+            ? _imageUrlCtrl.text.trim()
+            : null,
+        promoCode: _promoCodeCtrl.text.trim().isNotEmpty
+            ? _promoCodeCtrl.text.trim()
+            : null,
+        promoDiscount: _promoDiscountCtrl.text.trim().isNotEmpty
+            ? _promoDiscountCtrl.text.trim()
+            : null,
+        buttonText: _buttonTextCtrl.text.trim().isNotEmpty
+            ? _buttonTextCtrl.text.trim()
+            : null,
+        buttonUrl: _buttonUrlCtrl.text.trim().isNotEmpty
+            ? _buttonUrlCtrl.text.trim()
+            : null,
       );
 
       if (!mounted) return;
 
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
+      if (data['success'] == true) {
         final stats = data['stats'];
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -385,7 +385,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.neonCyan.withOpacity(0.1)
+                      ? AppColors.neonCyan.withValues(alpha: 0.1)
                       : Colors.transparent,
                   border: Border.all(
                     color: isSelected ? AppColors.neonCyan : AppColors.glassBorder,
@@ -418,15 +418,15 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
           gradient: filters.offersOnly
               ? LinearGradient(
                   colors: [
-                    AppColors.neonFuchsia.withOpacity(0.2),
-                    AppColors.neonCyan.withOpacity(0.1),
+                    AppColors.neonFuchsia.withValues(alpha: 0.2),
+                    AppColors.neonCyan.withValues(alpha: 0.1),
                   ],
                 )
               : null,
           color: filters.offersOnly ? null : AppColors.dark300,
           border: Border.all(
             color: filters.offersOnly
-                ? AppColors.neonFuchsia.withOpacity(0.4)
+                ? AppColors.neonFuchsia.withValues(alpha: 0.4)
                 : AppColors.glassBorder,
           ),
           borderRadius: BorderRadius.circular(12),
@@ -537,7 +537,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color:
-              isSelected ? AppColors.neonCyan.withOpacity(0.1) : AppColors.dark300,
+              isSelected ? AppColors.neonCyan.withValues(alpha: 0.1) : AppColors.dark300,
           border: Border.all(
             color: isSelected ? AppColors.neonCyan : AppColors.glassBorder,
           ),
@@ -591,7 +591,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.neonCyan.withOpacity(0.1)
+                      ? AppColors.neonCyan.withValues(alpha: 0.1)
                       : AppColors.dark300,
                   border: Border.all(
                     color:
@@ -663,7 +663,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: AppColors.neonCyan.withOpacity(0.4),
+                            color: AppColors.neonCyan.withValues(alpha: 0.4),
                             blurRadius: 8,
                           ),
                         ]

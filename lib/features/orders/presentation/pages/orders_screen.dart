@@ -172,6 +172,12 @@ class OrdersScreen extends ConsumerWidget {
         return AppColors.success;
       case OrderStatus.cancelled:
         return AppColors.error;
+      case OrderStatus.returnRequested:
+        return Colors.amber;
+      case OrderStatus.returned:
+        return Colors.deepOrange;
+      case OrderStatus.partialReturn:
+        return Colors.teal;
     }
   }
 }
@@ -202,7 +208,7 @@ class _FilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? chipColor.withOpacity(0.15) : AppColors.dark400,
+          color: isSelected ? chipColor.withValues(alpha: 0.15) : AppColors.dark400,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? chipColor : AppColors.dark100,
@@ -346,9 +352,9 @@ class _OrderCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.neonCyan.withOpacity(0.08),
+                  color: AppColors.neonCyan.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.neonCyan.withOpacity(0.2)),
+                  border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   children: [
@@ -410,6 +416,12 @@ class _StatusBadge extends StatelessWidget {
         return AppColors.success;
       case OrderStatus.cancelled:
         return AppColors.error;
+      case OrderStatus.returnRequested:
+        return Colors.amber;
+      case OrderStatus.returned:
+        return Colors.deepOrange;
+      case OrderStatus.partialReturn:
+        return Colors.teal;
     }
   }
 
@@ -425,6 +437,12 @@ class _StatusBadge extends StatelessWidget {
         return Icons.check_circle_outline;
       case OrderStatus.cancelled:
         return Icons.cancel_outlined;
+      case OrderStatus.returnRequested:
+        return Icons.assignment_return;
+      case OrderStatus.returned:
+        return Icons.assignment_returned;
+      case OrderStatus.partialReturn:
+        return Icons.assignment_return_outlined;
     }
   }
 
@@ -433,9 +451,9 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.12),
+        color: _color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _color.withOpacity(0.3)),
+        border: Border.all(color: _color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

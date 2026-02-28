@@ -100,7 +100,7 @@ class _CategoryChip extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.neonCyan.withOpacity(0.3),
+                    color: AppColors.neonCyan.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),

@@ -31,14 +31,14 @@ class AdminDrawer extends ConsumerWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.neonCyan.withOpacity(0.1),
-                  AppColors.neonFuchsia.withOpacity(0.05),
+                  AppColors.neonCyan.withValues(alpha: 0.1),
+                  AppColors.neonFuchsia.withValues(alpha: 0.05),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: Column(
@@ -100,6 +100,12 @@ class AdminDrawer extends ConsumerWidget {
                   icon: Icons.inventory_2_outlined,
                   label: 'Productos',
                   route: AppRoutes.adminProducts,
+                ),
+                _buildNavItem(
+                  context: context,
+                  icon: Icons.category_outlined,
+                  label: 'Categorías',
+                  route: AppRoutes.adminCategories,
                 ),
 
                 // ═══════════════════════════════════════════════════
@@ -184,7 +190,7 @@ class AdminDrawer extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Colors.white.withOpacity(0.05)),
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: Column(
@@ -257,7 +263,7 @@ class AdminDrawer extends ConsumerWidget {
                     label: const Text('Cerrar Sesión'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red[400],
-                      side: BorderSide(color: Colors.red[400]!.withOpacity(0.3)),
+                      side: BorderSide(color: Colors.red[400]!.withValues(alpha: 0.3)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -330,9 +336,9 @@ class AdminDrawer extends ConsumerWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
-        tileColor: isActive ? AppColors.neonCyan.withOpacity(0.1) : null,
-        selectedTileColor: AppColors.neonCyan.withOpacity(0.1),
-        hoverColor: AppColors.neonCyan.withOpacity(0.05),
+        tileColor: isActive ? AppColors.neonCyan.withValues(alpha: 0.1) : null,
+        selectedTileColor: AppColors.neonCyan.withValues(alpha: 0.1),
+        hoverColor: AppColors.neonCyan.withValues(alpha: 0.05),
       ),
     );
   }

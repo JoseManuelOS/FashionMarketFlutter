@@ -1,15 +1,13 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/constants/app_constants.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
@@ -18,7 +16,7 @@ import '../widgets/admin_notification_button.dart';
 // PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Lista de facturas con datos de pedido
+/// Lista de facturas con datos de pedido (vía RPC para bypasear RLS)
 final adminInvoicesProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final admin = ref.read(adminSessionProvider);
@@ -26,12 +24,13 @@ final adminInvoicesProvider =
 
   final supabase = Supabase.instance.client;
 
-  final response = await supabase
-      .from('facturacion')
-      .select('*, orders!inner(customer_email, customer_name, status, total)')
-      .order('created_at', ascending: false);
+  final response = await supabase.rpc(
+    'admin_get_invoices',
+    params: {'p_admin_email': admin.email},
+  );
 
-  return List<Map<String, dynamic>>.from(response);
+  if (response == null) return [];
+  return List<Map<String, dynamic>>.from(response as List);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -57,7 +56,7 @@ class _AdminInvoicesScreenState extends ConsumerState<AdminInvoicesScreen> {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -156,7 +155,7 @@ class _AdminInvoicesScreenState extends ConsumerState<AdminInvoicesScreen> {
         inv['customer_name'] ?? order?['customer_name'] ?? 'Cliente';
     final customerEmail =
         inv['customer_email'] ?? order?['customer_email'] ?? '';
-    final total = (inv['total'] ?? order?['total'] ?? 0).toDouble();
+    final total = (inv['total'] ?? order?['total_price'] ?? 0).toDouble();
     final createdAt = DateTime.tryParse(inv['created_at'] ?? '');
     final orderId = inv['order_id'];
     final isSending = _isSending && _sendingOrderId == orderId?.toString();
@@ -301,15 +300,13 @@ class _AdminInvoicesScreenState extends ConsumerState<AdminInvoicesScreen> {
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.fashionStoreBaseUrl}/api/invoice/send'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'orderId': orderId}),
+      final result = await FashionStoreApiService.sendInvoice(
+        orderId: orderId.toString(),
       );
 
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
+      if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Factura enviada al cliente'),
@@ -317,8 +314,7 @@ class _AdminInvoicesScreenState extends ConsumerState<AdminInvoicesScreen> {
           ),
         );
       } else {
-        final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Error al enviar');
+        throw Exception(result['error'] ?? 'Error al enviar');
       }
     } catch (e) {
       if (mounted) {

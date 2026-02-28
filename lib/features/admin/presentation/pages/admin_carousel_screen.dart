@@ -7,6 +7,8 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
+import '../../../../shared/widgets/cloudinary_image_uploader.dart';
+import '../../../../shared/services/cloudinary_service.dart';
 
 /// Pantalla de gestión del carrusel
 /// Equivalente a /admin/carrusel en FashionStore
@@ -20,7 +22,7 @@ class AdminCarouselScreen extends ConsumerWidget {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -100,9 +102,9 @@ class AdminCarouselScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.neonCyan.withOpacity(0.1),
+              color: AppColors.neonCyan.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
+              border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -157,7 +159,7 @@ class AdminCarouselScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
@@ -199,16 +201,18 @@ class AdminCarouselScreen extends ConsumerWidget {
     final imageUrl = slide['image_url'] as String?;
     final title = slide['title'] as String? ?? 'Sin título';
     final subtitle = slide['subtitle'] as String?;
+    final description = slide['description'] as String?;
     final duration = (slide['duration'] as num?)?.toInt() ?? 5000;
     final ctaText = slide['cta_text'] as String?;
     final ctaLink = slide['cta_link'] as String?;
+    final discountCode = slide['discount_code'] as String?;
 
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isActive ? Colors.white.withOpacity(0.1) : Colors.red.withOpacity(0.3),
+          color: isActive ? Colors.white.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -367,6 +371,15 @@ class AdminCarouselScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Meta info
+                if (description != null && description.isNotEmpty) ...[
+                  Text(
+                    description,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Wrap(
                   spacing: 16,
                   runSpacing: 8,
@@ -376,6 +389,8 @@ class AdminCarouselScreen extends ConsumerWidget {
                       _buildMetaItem(Icons.touch_app_outlined, ctaText),
                     if (ctaLink != null)
                       _buildMetaItem(Icons.link, ctaLink),
+                    if (discountCode != null && discountCode.isNotEmpty)
+                      _buildMetaItem(Icons.local_offer_outlined, discountCode),
                   ],
                 ),
               ],
@@ -463,10 +478,11 @@ class AdminCarouselScreen extends ConsumerWidget {
     final titleController = TextEditingController();
     final subtitleController = TextEditingController();
     final descController = TextEditingController();
-    final imageUrlController = TextEditingController();
     final ctaTextController = TextEditingController(text: 'Ver más');
     final ctaLinkController = TextEditingController(text: '/productos');
+    final discountCodeController = TextEditingController();
     double duration = 5;
+    String? imageUrl;
 
     showModalBottomSheet(
       context: context,
@@ -507,13 +523,20 @@ class AdminCarouselScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
 
+                // ─── Imagen con Cloudinary ───
+                CloudinaryImageUploader(
+                  currentUrl: imageUrl,
+                  folder: CloudinaryService.folderCarousel,
+                  label: 'Imagen de la slide',
+                  onUploaded: (url) => setState(() => imageUrl = url),
+                ),
+                const SizedBox(height: 16),
+
                 _buildInputField(titleController, 'Título', 'Ej: Nueva Colección'),
                 const SizedBox(height: 16),
                 _buildInputField(subtitleController, 'Subtítulo (opcional)', 'Ej: Primavera 2026'),
                 const SizedBox(height: 16),
                 _buildInputField(descController, 'Descripción (opcional)', 'Texto descriptivo...'),
-                const SizedBox(height: 16),
-                _buildInputField(imageUrlController, 'URL de imagen', 'https://...'),
                 const SizedBox(height: 16),
 
                 Row(
@@ -527,6 +550,9 @@ class AdminCarouselScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+
+                _buildInputField(discountCodeController, 'Código descuento (opcional)', 'SUMMER25'),
                 const SizedBox(height: 16),
 
                 // Duración
@@ -548,7 +574,7 @@ class AdminCarouselScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (titleController.text.isEmpty || imageUrlController.text.isEmpty) {
+                      if (titleController.text.isEmpty || imageUrl == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Título e imagen son obligatorios'),
@@ -562,7 +588,7 @@ class AdminCarouselScreen extends ConsumerWidget {
                         title: titleController.text,
                         subtitle: subtitleController.text.isEmpty ? null : subtitleController.text,
                         description: descController.text.isEmpty ? null : descController.text,
-                        imageUrl: imageUrlController.text,
+                        imageUrl: imageUrl!,
                         ctaText: ctaTextController.text,
                         ctaLink: ctaLinkController.text,
                         duration: (duration * 1000).toInt(),

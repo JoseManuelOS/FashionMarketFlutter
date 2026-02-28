@@ -110,7 +110,7 @@ class _CheckoutStepShippingMethodState
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.neonCyan.withOpacity(0.1)
+              ? AppColors.neonCyan.withValues(alpha: 0.1)
               : AppColors.dark300,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(

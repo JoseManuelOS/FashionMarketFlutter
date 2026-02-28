@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../cart/data/models/cart_item_model.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../providers/checkout_providers.dart';
 import '../services/stripe_service.dart';
@@ -200,7 +201,7 @@ class CheckoutStepSummary extends ConsumerWidget {
     );
   }
 
-  Widget _buildProductItem(dynamic item) {
+  Widget _buildProductItem(CartItemModel item) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -226,7 +227,7 @@ class CheckoutStepSummary extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.productName,
+                  item.name,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 14,
@@ -528,9 +529,9 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
               ),
               child: Text(
                 _error!,

@@ -21,6 +21,7 @@ class CategoryModel with _$CategoryModel {
   const CategoryModel._();
 
   /// Factory con manejo de snake_case desde Supabase
+  /// DB columns: id, name, slug, description, image_url, display_order, created_at
   factory CategoryModel.fromJson(Map<String, dynamic> json) => CategoryModel(
         id: json['id'] as String,
         name: json['name'] as String,
@@ -28,23 +29,30 @@ class CategoryModel with _$CategoryModel {
         description: json['description'] as String?,
         imageUrl: json['image_url'] as String?,
         parentId: json['parent_id'] as String?,
-        sortOrder: json['sort_order'] as int? ?? 0,
+        sortOrder: json['display_order'] as int? ?? json['sort_order'] as int? ?? 0,
         active: json['active'] as bool? ?? true,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,
       );
 
-  /// Convertir a JSON
+  /// Convertir a JSON para Supabase (usa display_order, no sort_order)
   Map<String, dynamic> toJson() => {
+        'name': name,
+        'slug': slug,
+        'description': description,
+        'image_url': imageUrl,
+        'display_order': sortOrder,
+      };
+
+  /// JSON completo incluyendo campos de solo lectura
+  Map<String, dynamic> toFullJson() => {
         'id': id,
         'name': name,
         'slug': slug,
         'description': description,
         'image_url': imageUrl,
-        'parent_id': parentId,
-        'sort_order': sortOrder,
-        'active': active,
+        'display_order': sortOrder,
         'created_at': createdAt?.toIso8601String(),
       };
 

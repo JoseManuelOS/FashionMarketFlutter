@@ -717,6 +717,7 @@ mixin _$OrderItemModel {
   String? get productImage => throw _privateConstructorUsedError;
   int get quantity => throw _privateConstructorUsedError;
   String get size => throw _privateConstructorUsedError;
+  String? get color => throw _privateConstructorUsedError;
   double get priceAtPurchase => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
@@ -742,6 +743,7 @@ abstract class $OrderItemModelCopyWith<$Res> {
       String? productImage,
       int quantity,
       String size,
+      String? color,
       double priceAtPurchase,
       DateTime? createdAt});
 }
@@ -769,6 +771,7 @@ class _$OrderItemModelCopyWithImpl<$Res, $Val extends OrderItemModel>
     Object? productImage = freezed,
     Object? quantity = null,
     Object? size = null,
+    Object? color = freezed,
     Object? priceAtPurchase = null,
     Object? createdAt = freezed,
   }) {
@@ -805,6 +808,10 @@ class _$OrderItemModelCopyWithImpl<$Res, $Val extends OrderItemModel>
           ? _value.size
           : size // ignore: cast_nullable_to_non_nullable
               as String,
+      color: freezed == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as String?,
       priceAtPurchase: null == priceAtPurchase
           ? _value.priceAtPurchase
           : priceAtPurchase // ignore: cast_nullable_to_non_nullable
@@ -834,6 +841,7 @@ abstract class _$$OrderItemModelImplCopyWith<$Res>
       String? productImage,
       int quantity,
       String size,
+      String? color,
       double priceAtPurchase,
       DateTime? createdAt});
 }
@@ -859,6 +867,7 @@ class __$$OrderItemModelImplCopyWithImpl<$Res>
     Object? productImage = freezed,
     Object? quantity = null,
     Object? size = null,
+    Object? color = freezed,
     Object? priceAtPurchase = null,
     Object? createdAt = freezed,
   }) {
@@ -895,6 +904,10 @@ class __$$OrderItemModelImplCopyWithImpl<$Res>
           ? _value.size
           : size // ignore: cast_nullable_to_non_nullable
               as String,
+      color: freezed == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as String?,
       priceAtPurchase: null == priceAtPurchase
           ? _value.priceAtPurchase
           : priceAtPurchase // ignore: cast_nullable_to_non_nullable
@@ -919,6 +932,7 @@ class _$OrderItemModelImpl extends _OrderItemModel {
       this.productImage,
       required this.quantity,
       required this.size,
+      this.color,
       required this.priceAtPurchase,
       this.createdAt})
       : super._();
@@ -940,13 +954,15 @@ class _$OrderItemModelImpl extends _OrderItemModel {
   @override
   final String size;
   @override
+  final String? color;
+  @override
   final double priceAtPurchase;
   @override
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'OrderItemModel(id: $id, orderId: $orderId, productId: $productId, productName: $productName, productSlug: $productSlug, productImage: $productImage, quantity: $quantity, size: $size, priceAtPurchase: $priceAtPurchase, createdAt: $createdAt)';
+    return 'OrderItemModel(id: $id, orderId: $orderId, productId: $productId, productName: $productName, productSlug: $productSlug, productImage: $productImage, quantity: $quantity, size: $size, color: $color, priceAtPurchase: $priceAtPurchase, createdAt: $createdAt)';
   }
 
   @override
@@ -967,6 +983,7 @@ class _$OrderItemModelImpl extends _OrderItemModel {
             (identical(other.quantity, quantity) ||
                 other.quantity == quantity) &&
             (identical(other.size, size) || other.size == size) &&
+            (identical(other.color, color) || other.color == color) &&
             (identical(other.priceAtPurchase, priceAtPurchase) ||
                 other.priceAtPurchase == priceAtPurchase) &&
             (identical(other.createdAt, createdAt) ||
@@ -984,6 +1001,7 @@ class _$OrderItemModelImpl extends _OrderItemModel {
       productImage,
       quantity,
       size,
+      color,
       priceAtPurchase,
       createdAt);
 
@@ -1007,6 +1025,7 @@ abstract class _OrderItemModel extends OrderItemModel {
       final String? productImage,
       required final int quantity,
       required final String size,
+      final String? color,
       required final double priceAtPurchase,
       final DateTime? createdAt}) = _$OrderItemModelImpl;
   const _OrderItemModel._() : super._();
@@ -1027,6 +1046,8 @@ abstract class _OrderItemModel extends OrderItemModel {
   int get quantity;
   @override
   String get size;
+  @override
+  String? get color;
   @override
   double get priceAtPurchase;
   @override

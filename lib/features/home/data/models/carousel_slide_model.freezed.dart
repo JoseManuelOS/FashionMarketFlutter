@@ -19,13 +19,17 @@ mixin _$CarouselSlideModel {
   String get id => throw _privateConstructorUsedError;
   String? get title => throw _privateConstructorUsedError;
   String? get subtitle => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
   String get imageUrl => throw _privateConstructorUsedError;
-  String? get mobileImageUrl => throw _privateConstructorUsedError;
   String? get ctaText => throw _privateConstructorUsedError;
   String? get ctaLink => throw _privateConstructorUsedError;
+  int get duration => throw _privateConstructorUsedError;
   int get sortOrder => throw _privateConstructorUsedError;
   bool get isActive => throw _privateConstructorUsedError;
+  String? get discountCode => throw _privateConstructorUsedError;
+  Map<String, dynamic>? get styleConfig => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
 
   /// Create a copy of CarouselSlideModel
   /// with the given fields replaced by the non-null parameter values.
@@ -44,13 +48,17 @@ abstract class $CarouselSlideModelCopyWith<$Res> {
       {String id,
       String? title,
       String? subtitle,
+      String? description,
       String imageUrl,
-      String? mobileImageUrl,
       String? ctaText,
       String? ctaLink,
+      int duration,
       int sortOrder,
       bool isActive,
-      DateTime? createdAt});
+      String? discountCode,
+      Map<String, dynamic>? styleConfig,
+      DateTime? createdAt,
+      DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -71,13 +79,17 @@ class _$CarouselSlideModelCopyWithImpl<$Res, $Val extends CarouselSlideModel>
     Object? id = null,
     Object? title = freezed,
     Object? subtitle = freezed,
+    Object? description = freezed,
     Object? imageUrl = null,
-    Object? mobileImageUrl = freezed,
     Object? ctaText = freezed,
     Object? ctaLink = freezed,
+    Object? duration = null,
     Object? sortOrder = null,
     Object? isActive = null,
+    Object? discountCode = freezed,
+    Object? styleConfig = freezed,
     Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -92,14 +104,14 @@ class _$CarouselSlideModelCopyWithImpl<$Res, $Val extends CarouselSlideModel>
           ? _value.subtitle
           : subtitle // ignore: cast_nullable_to_non_nullable
               as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
       imageUrl: null == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
               as String,
-      mobileImageUrl: freezed == mobileImageUrl
-          ? _value.mobileImageUrl
-          : mobileImageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
       ctaText: freezed == ctaText
           ? _value.ctaText
           : ctaText // ignore: cast_nullable_to_non_nullable
@@ -108,6 +120,10 @@ class _$CarouselSlideModelCopyWithImpl<$Res, $Val extends CarouselSlideModel>
           ? _value.ctaLink
           : ctaLink // ignore: cast_nullable_to_non_nullable
               as String?,
+      duration: null == duration
+          ? _value.duration
+          : duration // ignore: cast_nullable_to_non_nullable
+              as int,
       sortOrder: null == sortOrder
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
@@ -116,9 +132,21 @@ class _$CarouselSlideModelCopyWithImpl<$Res, $Val extends CarouselSlideModel>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      discountCode: freezed == discountCode
+          ? _value.discountCode
+          : discountCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      styleConfig: freezed == styleConfig
+          ? _value.styleConfig
+          : styleConfig // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
     ) as $Val);
   }
@@ -136,13 +164,17 @@ abstract class _$$CarouselSlideModelImplCopyWith<$Res>
       {String id,
       String? title,
       String? subtitle,
+      String? description,
       String imageUrl,
-      String? mobileImageUrl,
       String? ctaText,
       String? ctaLink,
+      int duration,
       int sortOrder,
       bool isActive,
-      DateTime? createdAt});
+      String? discountCode,
+      Map<String, dynamic>? styleConfig,
+      DateTime? createdAt,
+      DateTime? updatedAt});
 }
 
 /// @nodoc
@@ -161,13 +193,17 @@ class __$$CarouselSlideModelImplCopyWithImpl<$Res>
     Object? id = null,
     Object? title = freezed,
     Object? subtitle = freezed,
+    Object? description = freezed,
     Object? imageUrl = null,
-    Object? mobileImageUrl = freezed,
     Object? ctaText = freezed,
     Object? ctaLink = freezed,
+    Object? duration = null,
     Object? sortOrder = null,
     Object? isActive = null,
+    Object? discountCode = freezed,
+    Object? styleConfig = freezed,
     Object? createdAt = freezed,
+    Object? updatedAt = freezed,
   }) {
     return _then(_$CarouselSlideModelImpl(
       id: null == id
@@ -182,14 +218,14 @@ class __$$CarouselSlideModelImplCopyWithImpl<$Res>
           ? _value.subtitle
           : subtitle // ignore: cast_nullable_to_non_nullable
               as String?,
+      description: freezed == description
+          ? _value.description
+          : description // ignore: cast_nullable_to_non_nullable
+              as String?,
       imageUrl: null == imageUrl
           ? _value.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
               as String,
-      mobileImageUrl: freezed == mobileImageUrl
-          ? _value.mobileImageUrl
-          : mobileImageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
       ctaText: freezed == ctaText
           ? _value.ctaText
           : ctaText // ignore: cast_nullable_to_non_nullable
@@ -198,6 +234,10 @@ class __$$CarouselSlideModelImplCopyWithImpl<$Res>
           ? _value.ctaLink
           : ctaLink // ignore: cast_nullable_to_non_nullable
               as String?,
+      duration: null == duration
+          ? _value.duration
+          : duration // ignore: cast_nullable_to_non_nullable
+              as int,
       sortOrder: null == sortOrder
           ? _value.sortOrder
           : sortOrder // ignore: cast_nullable_to_non_nullable
@@ -206,9 +246,21 @@ class __$$CarouselSlideModelImplCopyWithImpl<$Res>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      discountCode: freezed == discountCode
+          ? _value.discountCode
+          : discountCode // ignore: cast_nullable_to_non_nullable
+              as String?,
+      styleConfig: freezed == styleConfig
+          ? _value._styleConfig
+          : styleConfig // ignore: cast_nullable_to_non_nullable
+              as Map<String, dynamic>?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
     ));
   }
@@ -221,14 +273,19 @@ class _$CarouselSlideModelImpl extends _CarouselSlideModel {
       {required this.id,
       this.title,
       this.subtitle,
+      this.description,
       required this.imageUrl,
-      this.mobileImageUrl,
       this.ctaText,
       this.ctaLink,
+      this.duration = 5000,
       this.sortOrder = 0,
       this.isActive = true,
-      this.createdAt})
-      : super._();
+      this.discountCode,
+      final Map<String, dynamic>? styleConfig,
+      this.createdAt,
+      this.updatedAt})
+      : _styleConfig = styleConfig,
+        super._();
 
   @override
   final String id;
@@ -237,13 +294,16 @@ class _$CarouselSlideModelImpl extends _CarouselSlideModel {
   @override
   final String? subtitle;
   @override
-  final String imageUrl;
+  final String? description;
   @override
-  final String? mobileImageUrl;
+  final String imageUrl;
   @override
   final String? ctaText;
   @override
   final String? ctaLink;
+  @override
+  @JsonKey()
+  final int duration;
   @override
   @JsonKey()
   final int sortOrder;
@@ -251,11 +311,25 @@ class _$CarouselSlideModelImpl extends _CarouselSlideModel {
   @JsonKey()
   final bool isActive;
   @override
+  final String? discountCode;
+  final Map<String, dynamic>? _styleConfig;
+  @override
+  Map<String, dynamic>? get styleConfig {
+    final value = _styleConfig;
+    if (value == null) return null;
+    if (_styleConfig is EqualUnmodifiableMapView) return _styleConfig;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
+  @override
   final DateTime? createdAt;
+  @override
+  final DateTime? updatedAt;
 
   @override
   String toString() {
-    return 'CarouselSlideModel(id: $id, title: $title, subtitle: $subtitle, imageUrl: $imageUrl, mobileImageUrl: $mobileImageUrl, ctaText: $ctaText, ctaLink: $ctaLink, sortOrder: $sortOrder, isActive: $isActive, createdAt: $createdAt)';
+    return 'CarouselSlideModel(id: $id, title: $title, subtitle: $subtitle, description: $description, imageUrl: $imageUrl, ctaText: $ctaText, ctaLink: $ctaLink, duration: $duration, sortOrder: $sortOrder, isActive: $isActive, discountCode: $discountCode, styleConfig: $styleConfig, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -267,23 +341,45 @@ class _$CarouselSlideModelImpl extends _CarouselSlideModel {
             (identical(other.title, title) || other.title == title) &&
             (identical(other.subtitle, subtitle) ||
                 other.subtitle == subtitle) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
             (identical(other.imageUrl, imageUrl) ||
                 other.imageUrl == imageUrl) &&
-            (identical(other.mobileImageUrl, mobileImageUrl) ||
-                other.mobileImageUrl == mobileImageUrl) &&
             (identical(other.ctaText, ctaText) || other.ctaText == ctaText) &&
             (identical(other.ctaLink, ctaLink) || other.ctaLink == ctaLink) &&
+            (identical(other.duration, duration) ||
+                other.duration == duration) &&
             (identical(other.sortOrder, sortOrder) ||
                 other.sortOrder == sortOrder) &&
             (identical(other.isActive, isActive) ||
                 other.isActive == isActive) &&
+            (identical(other.discountCode, discountCode) ||
+                other.discountCode == discountCode) &&
+            const DeepCollectionEquality()
+                .equals(other._styleConfig, _styleConfig) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, id, title, subtitle, imageUrl,
-      mobileImageUrl, ctaText, ctaLink, sortOrder, isActive, createdAt);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      title,
+      subtitle,
+      description,
+      imageUrl,
+      ctaText,
+      ctaLink,
+      duration,
+      sortOrder,
+      isActive,
+      discountCode,
+      const DeepCollectionEquality().hash(_styleConfig),
+      createdAt,
+      updatedAt);
 
   /// Create a copy of CarouselSlideModel
   /// with the given fields replaced by the non-null parameter values.
@@ -300,13 +396,17 @@ abstract class _CarouselSlideModel extends CarouselSlideModel {
       {required final String id,
       final String? title,
       final String? subtitle,
+      final String? description,
       required final String imageUrl,
-      final String? mobileImageUrl,
       final String? ctaText,
       final String? ctaLink,
+      final int duration,
       final int sortOrder,
       final bool isActive,
-      final DateTime? createdAt}) = _$CarouselSlideModelImpl;
+      final String? discountCode,
+      final Map<String, dynamic>? styleConfig,
+      final DateTime? createdAt,
+      final DateTime? updatedAt}) = _$CarouselSlideModelImpl;
   const _CarouselSlideModel._() : super._();
 
   @override
@@ -316,19 +416,27 @@ abstract class _CarouselSlideModel extends CarouselSlideModel {
   @override
   String? get subtitle;
   @override
-  String get imageUrl;
+  String? get description;
   @override
-  String? get mobileImageUrl;
+  String get imageUrl;
   @override
   String? get ctaText;
   @override
   String? get ctaLink;
   @override
+  int get duration;
+  @override
   int get sortOrder;
   @override
   bool get isActive;
   @override
+  String? get discountCode;
+  @override
+  Map<String, dynamic>? get styleConfig;
+  @override
   DateTime? get createdAt;
+  @override
+  DateTime? get updatedAt;
 
   /// Create a copy of CarouselSlideModel
   /// with the given fields replaced by the non-null parameter values.

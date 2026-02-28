@@ -34,23 +34,58 @@ class ProductModel with _$ProductModel {
   const ProductModel._();
 
   /// Factory con manejo de snake_case desde Supabase
-  factory ProductModel.fromJson(Map<String, dynamic> json) => ProductModel(
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    // Construir stockBySize: prioridad a product_variants, fallback a stock_by_size JSON
+    Map<String, int>? stockBySize;
+    final variants = json['variants'] as List<dynamic>?;
+    if (variants != null && variants.isNotEmpty) {
+      stockBySize = {};
+      for (final v in variants) {
+        final m = v as Map<String, dynamic>;
+        final size = m['size'] as String? ?? '';
+        final stock = m['stock'] as int? ?? 0;
+        if (size.isNotEmpty) {
+          stockBySize[size] = (stockBySize[size] ?? 0) + stock;
+        }
+      }
+    } else if (json['stock_by_size'] != null) {
+      stockBySize = Map<String, int>.from(json['stock_by_size'] as Map);
+    }
+
+    // Calcular stock total real desde variantes si están disponibles
+    final int totalStock;
+    if (stockBySize != null && stockBySize.isNotEmpty) {
+      totalStock = stockBySize.values.fold(0, (sum, s) => sum + s);
+    } else {
+      totalStock = json['stock'] as int? ?? 0;
+    }
+
+    // Construir lista de tallas desde variantes si no viene del campo sizes
+    final sizesFromJson = (json['sizes'] as List<dynamic>?)?.cast<String>() ?? [];
+    final List<String> sizes;
+    if (sizesFromJson.isNotEmpty) {
+      sizes = sizesFromJson;
+    } else if (stockBySize != null && stockBySize.isNotEmpty) {
+      sizes = stockBySize.keys.toList();
+    } else {
+      sizes = [];
+    }
+
+    return ProductModel(
         id: json['id'] as String,
         name: json['name'] as String,
         slug: json['slug'] as String? ?? json['name'].toString().toLowerCase().replaceAll(' ', '-'),
         description: json['description'] as String?,
         price: (json['price'] as num).toDouble(),
-        stock: json['stock'] as int? ?? 0,
+        stock: totalStock,
         categoryId: json['category_id'] as String?,
         isOffer: json['is_offer'] as bool? ?? false,
         originalPrice: json['original_price'] != null 
             ? (json['original_price'] as num).toDouble() 
             : null,
         discountPercent: json['discount_percent'] as int?,
-        sizes: (json['sizes'] as List<dynamic>?)?.cast<String>() ?? [],
-        stockBySize: json['stock_by_size'] != null
-            ? Map<String, int>.from(json['stock_by_size'] as Map)
-            : null,
+        sizes: sizes,
+        stockBySize: stockBySize,
         active: json['active'] as bool? ?? true,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
@@ -67,6 +102,7 @@ class ProductModel with _$ProductModel {
             [],
         tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       );
+  }
 
   /// Convertir a JSON
   Map<String, dynamic> toJson() => {

@@ -10,6 +10,10 @@ import '../../../../config/router/app_router.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
+import '../widgets/variant_editor_widget.dart';
+import '../widgets/color_editor_widget.dart';
+import '../../../../shared/widgets/cloudinary_image_uploader.dart';
+import '../../../../shared/services/cloudinary_service.dart';
 
 /// Pantalla de gestión de productos (Admin)
 class AdminProductsScreen extends ConsumerStatefulWidget {
@@ -47,7 +51,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -84,7 +88,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF0D0D14),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: TextField(
@@ -231,14 +235,30 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
     );
   }
 
-  /// Muestra diálogo para CREAR nuevo producto
-  void _showCreateProductDialog(BuildContext context, WidgetRef ref) {
+  /// Muestra diálogo para CREAR nuevo producto (formulario completo)
+  /// Usa RPC admin_create_product para bypassear RLS
+  Future<void> _showCreateProductDialog(BuildContext context, WidgetRef ref) async {
     final nameController = TextEditingController();
-    final slugController = TextEditingController();
     final priceController = TextEditingController();
-    final stockController = TextEditingController(text: '10');
+    final originalPriceController = TextEditingController();
+    final discountPercentController = TextEditingController();
     final descriptionController = TextEditingController();
     bool isOffer = false;
+    bool isCreating = false;
+    String? selectedCategoryId;
+    List<String> imageUrls = [];
+    List<Map<String, dynamic>> variants = [];
+    List<ProductColor> productColors = [];
+    Map<String, String?> imageColorAssignments = {};
+
+    // Pre-cargar categorías antes de abrir el modal (evita loading infinito)
+    List<Map<String, dynamic>> categories = [];
+    try {
+      categories = ref.read(adminCategoriesProvider).valueOrNull ?? 
+          await ref.read(adminCategoriesProvider.future);
+    } catch (_) {}
+    final admin = ref.read(adminSessionProvider);
+    final parentScaffoldMessenger = ScaffoldMessenger.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -249,194 +269,354 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
             decoration: const BoxDecoration(
               color: Color(0xFF12121A),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Crear Nuevo Producto',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      // Handle
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[700],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
-                  // Nombre
-                  _buildCreateTextField(
-                    controller: nameController,
-                    label: 'Nombre del producto',
-                    icon: Icons.label_outline,
-                    onChanged: (value) {
-                      // Auto-generar slug
-                      slugController.text = value
-                          .toLowerCase()
-                          .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-                          .replaceAll(RegExp(r'^-|-$'), '');
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Slug
-                  _buildCreateTextField(
-                    controller: slugController,
-                    label: 'Slug (URL)',
-                    icon: Icons.link,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Precio
-                  _buildCreateTextField(
-                    controller: priceController,
-                    label: 'Precio (€)',
-                    icon: Icons.euro,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Stock
-                  _buildCreateTextField(
-                    controller: stockController,
-                    label: 'Stock inicial',
-                    icon: Icons.inventory_2_outlined,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Descripción
-                  _buildCreateTextField(
-                    controller: descriptionController,
-                    label: 'Descripción',
-                    icon: Icons.description_outlined,
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Switch oferta
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A24),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Es oferta', style: TextStyle(color: Colors.white)),
-                        Switch(
-                          value: isOffer,
-                          onChanged: (v) => setModalState(() => isOffer = v),
-                          activeColor: AppColors.neonFuchsia,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Botón crear
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (nameController.text.isEmpty || priceController.text.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Nombre y precio son requeridos'),
-                              backgroundColor: Colors.orange,
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Crear Nuevo Producto',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                          return;
-                        }
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
 
-                        final supabase = Supabase.instance.client;
+                      // ─── Imágenes del producto ───
+                      CloudinaryMultiImageUploader(
+                        imageUrls: imageUrls,
+                        folder: CloudinaryService.folderProducts,
+                        label: 'Imágenes del producto',
+                        maxImages: 8,
+                        onChanged: (urls) => setModalState(() => imageUrls = urls),
+                        availableColors: productColors.map((c) => {'name': c.name, 'hex': c.hex}).toList(),
+                        imageColorAssignments: imageColorAssignments,
+                        onColorAssignmentsChanged: (assignments) => setModalState(() => imageColorAssignments = assignments),
+                      ),
+                      const SizedBox(height: 20),
 
-                        try {
-                          await supabase.from('products').insert({
-                            'name': nameController.text,
-                            'slug': slugController.text.isNotEmpty
-                                ? slugController.text
-                                : nameController.text
-                                    .toLowerCase()
-                                    .replaceAll(RegExp(r'[^a-z0-9]+'), '-'),
-                            'price': double.tryParse(priceController.text) ?? 0,
-                            'stock': int.tryParse(stockController.text) ?? 0,
-                            'description': descriptionController.text.isNotEmpty
-                                ? descriptionController.text
-                                : null,
-                            'is_offer': isOffer,
-                            'active': true,
-                          });
+                      // Nombre
+                      _buildCreateTextField(
+                        controller: nameController,
+                        label: 'Nombre del producto',
+                        icon: Icons.label_outline,
+                      ),
+                      const SizedBox(height: 16),
 
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ref.invalidate(adminProductsProvider);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Producto creado correctamente'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error al crear: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.neonCyan,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
+                      // ─── Categoría selector ───
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A24),
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        child: DropdownButtonFormField<String>(
+                          value: selectedCategoryId,
+                          decoration: InputDecoration(
+                            labelText: 'Categoría',
+                            labelStyle: TextStyle(color: Colors.grey[500]),
+                            prefixIcon: const Icon(Icons.category_outlined, color: AppColors.neonCyan),
+                            border: InputBorder.none,
+                          ),
+                          dropdownColor: const Color(0xFF1A1A24),
+                          style: const TextStyle(color: Colors.white),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('Sin categoría', style: TextStyle(color: Colors.grey)),
+                            ),
+                            ...categories.map((cat) => DropdownMenuItem<String>(
+                                  value: cat['id'] as String,
+                                  child: Text(cat['name'] as String? ?? ''),
+                                )),
+                          ],
+                          onChanged: (value) => setModalState(() => selectedCategoryId = value),
+                        ),
                       ),
-                      child: const Text(
-                        'Crear Producto',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      const SizedBox(height: 16),
+
+                      // ─── Precios ───
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildCreateTextField(
+                              controller: priceController,
+                              label: 'Precio (€)',
+                              icon: Icons.euro,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildCreateTextField(
+                              controller: originalPriceController,
+                              label: 'Precio original (€)',
+                              icon: Icons.price_change_outlined,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Descuento
+                      _buildCreateTextField(
+                        controller: discountPercentController,
+                        label: 'Descuento (%)',
+                        icon: Icons.percent,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Descripción
+                      _buildCreateTextField(
+                        controller: descriptionController,
+                        label: 'Descripción',
+                        icon: Icons.description_outlined,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Switch oferta
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A24),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Es oferta', style: TextStyle(color: Colors.white)),
+                            Switch(
+                              value: isOffer,
+                              onChanged: (v) => setModalState(() => isOffer = v),
+                              activeColor: AppColors.neonFuchsia,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ─── COLORES DEL PRODUCTO ───
+                      ColorEditorWidget(
+                        initialColors: productColors,
+                        onChanged: (colors) => setModalState(() => productColors = colors),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ─── VARIANTES (Tallas con Stock) ───
+                      const Text(
+                        'Stock por Talla',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        productColors.isEmpty
+                            ? 'Define el stock por cada talla disponible'
+                            : 'Define el stock por cada talla × color',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      ),
+                      const SizedBox(height: 12),
+                      VariantEditorWidget(
+                        initialVariants: const [],
+                        onChanged: (v) => variants = v,
+                        colors: productColors,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Botón crear
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isCreating ? null : () async {
+                            if (nameController.text.isEmpty || priceController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Nombre y precio son requeridos'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
+                            }
+                            if (variants.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Añade al menos una talla con stock'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
+                            }
+
+                            setModalState(() => isCreating = true);
+                            final supabase = Supabase.instance.client;
+
+                            try {
+                              // Crear array de imágenes para el RPC
+                              final imagesData = imageUrls
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    final imgData = <String, dynamic>{
+                                      'image_url': entry.value,
+                                      'order': entry.key,
+                                    };
+                                    // Add color assignment if exists
+                                    final assignedColor = imageColorAssignments[entry.value];
+                                    if (assignedColor != null) {
+                                      imgData['color'] = assignedColor;
+                                      final colorMatch = productColors.where((c) => c.name == assignedColor).firstOrNull;
+                                      if (colorMatch != null) {
+                                        imgData['color_hex'] = colorMatch.hex;
+                                      }
+                                    }
+                                    return imgData;
+                                  })
+                                  .toList();
+
+                              // Construir sizes array
+                              final sizes = variants.map((v) => v['size'] as String).toSet().toList();
+
+                              // Construir colors JSONB
+                              final colorsJson = productColors.map((c) => c.toJson()).toList();
+
+                              final productData = {
+                                'name': nameController.text.trim(),
+                                'description': descriptionController.text.isNotEmpty
+                                    ? descriptionController.text.trim()
+                                    : null,
+                                'price': double.tryParse(priceController.text) ?? 0,
+                                'category_id': selectedCategoryId,
+                                'is_offer': isOffer,
+                                'active': true,
+                                'sizes': sizes,
+                                'variants': variants,
+                                'images': imagesData,
+                                'colors': colorsJson,
+                              };
+
+                              // Precio original
+                              final originalPrice = double.tryParse(originalPriceController.text);
+                              if (originalPrice != null) {
+                                productData['original_price'] = originalPrice;
+                              }
+
+                              // Descuento
+                              final discountPercent = int.tryParse(discountPercentController.text);
+                              if (discountPercent != null) {
+                                productData['discount_percent'] = discountPercent;
+                              }
+
+                              // Llamar al RPC (SECURITY DEFINER bypassea RLS)
+                              await supabase.rpc(
+                                'admin_create_product',
+                                params: {
+                                  'p_admin_email': admin?.email ?? '',
+                                  'p_data': productData,
+                                },
+                              );
+
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ref.invalidate(adminProductsProvider);
+                                ref.invalidate(adminDashboardStatsProvider);
+                                parentScaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('✅ Producto creado correctamente'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() => isCreating = false);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                parentScaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error al crear: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.neonCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: isCreating
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Crear Producto',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                // Loading overlay
+                if (isCreating)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      child: const Center(
+                        child: CircularProgressIndicator(color: AppColors.neonCyan),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+              ],
             ),
           ),
         ),
@@ -493,11 +673,14 @@ class _ProductCard extends ConsumerWidget {
     // Stock por talla desde variants
     final variants = product['variants'] as List? ?? [];
 
+    // Colores del producto
+    final productColors = product['colors'] as List? ?? [];
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
@@ -599,8 +782,8 @@ class _ProductCard extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
+                            ? Colors.green.withValues(alpha: 0.1)
+                            : Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -624,7 +807,7 @@ class _ProductCard extends ConsumerWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.neonFuchsia.withOpacity(0.2),
+                              color: AppColors.neonFuchsia.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
@@ -655,25 +838,47 @@ class _ProductCard extends ConsumerWidget {
             ),
             child: Column(
               children: [
-                // Stock por talla
+                // Color chips
+                if (productColors.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.palette_outlined, color: Colors.grey[500], size: 14),
+                        const SizedBox(width: 6),
+                        ...productColors.take(6).map((c) {
+                          Color chipColor;
+                          try {
+                            final h = ((c as Map)['hex'] as String? ?? '#808080').replaceFirst('#', '');
+                            chipColor = Color(int.parse('FF$h', radix: 16));
+                          } catch (_) {
+                            chipColor = Colors.grey;
+                          }
+                          return Container(
+                            margin: const EdgeInsets.only(right: 4),
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: chipColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white24),
+                            ),
+                          );
+                        }),
+                        if (productColors.length > 6)
+                          Text(
+                            '+${productColors.length - 6}',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                          ),
+                      ],
+                    ),
+                  ),
+                // Stock por talla (desglosado por color cuando hay colores)
                 Builder(
                   builder: (context) {
-                    // Ordenar variantes por talla
                     final sizeOrder = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '36', '38', '40', '42', '44', '46'];
-                    final sortedVariants = List<Map<String, dynamic>>.from(variants);
-                    sortedVariants.sort((a, b) {
-                      final sizeA = a['size'] as String? ?? '';
-                      final sizeB = b['size'] as String? ?? '';
-                      final indexA = sizeOrder.indexOf(sizeA.toUpperCase());
-                      final indexB = sizeOrder.indexOf(sizeB.toUpperCase());
-                      if (indexA == -1 && indexB == -1) return sizeA.compareTo(sizeB);
-                      if (indexA == -1) return 1;
-                      if (indexB == -1) return -1;
-                      return indexA.compareTo(indexB);
-                    });
                     
-                    if (sortedVariants.isEmpty) {
-                      // Mostrar stock global si no hay variantes
+                    if (variants.isEmpty) {
                       final globalStock = product['stock'] as int? ?? 0;
                       return Row(
                         children: [
@@ -686,16 +891,130 @@ class _ProductCard extends ConsumerWidget {
                         ],
                       );
                     }
+
+                    // Comprobar si hay múltiples colores en las variantes
+                    final hasColors = variants.any((v) => v['color'] != null && (v['color'] as String).isNotEmpty);
+
+                    // Si tiene colores, mostrar stock desglosado por color → talla
+                    if (hasColors) {
+                      // Agrupar: color → {size → stock}
+                      final Map<String, Map<String, int>> stockByColor = {};
+                      final Map<String, String> colorHexMap = {};
+                      for (final v in variants) {
+                        final color = v['color'] as String? ?? 'Sin color';
+                        final size = v['size'] as String? ?? '?';
+                        final qty = v['stock'] as int? ?? 0;
+                        stockByColor.putIfAbsent(color, () => {});
+                        stockByColor[color]![size] = (stockByColor[color]![size] ?? 0) + qty;
+                      }
+                      // Obtener hex de colores desde productColors
+                      for (final c in productColors) {
+                        try {
+                          final name = (c as Map)['name'] as String? ?? '';
+                          final hex = (c)['hex'] as String? ?? '';
+                          if (name.isNotEmpty) colorHexMap[name] = hex;
+                        } catch (_) {}
+                      }
+
+                      final colorNames = stockByColor.keys.toList()..sort();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: colorNames.map((colorName) {
+                          final sizesMap = stockByColor[colorName]!;
+                          final sortedSizes = sizesMap.keys.toList()..sort((a, b) {
+                            final indexA = sizeOrder.indexOf(a.toUpperCase());
+                            final indexB = sizeOrder.indexOf(b.toUpperCase());
+                            if (indexA == -1 && indexB == -1) return a.compareTo(b);
+                            if (indexA == -1) return 1;
+                            if (indexB == -1) return -1;
+                            return indexA.compareTo(indexB);
+                          });
+
+                          // Resolve color dot
+                          Color dotColor = Colors.grey;
+                          final hex = colorHexMap[colorName];
+                          if (hex != null && hex.isNotEmpty) {
+                            try {
+                              final h = hex.replaceFirst('#', '');
+                              dotColor = Color(int.parse('FF$h', radix: 16));
+                            } catch (_) {}
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: dotColor,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white24, width: 0.5),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ...sortedSizes.map((size) {
+                                    final qty = sizesMap[size]!;
+                                    final isLow = qty > 0 && qty <= 3;
+                                    final isOut = qty == 0;
+                                    return Container(
+                                      margin: const EdgeInsets.only(right: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isOut
+                                            ? Colors.red.withValues(alpha: 0.15)
+                                            : isLow
+                                                ? Colors.orange.withValues(alpha: 0.15)
+                                                : Colors.grey.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: isOut
+                                              ? Colors.red.withValues(alpha: 0.3)
+                                              : isLow
+                                                  ? Colors.orange.withValues(alpha: 0.3)
+                                                  : Colors.grey.withValues(alpha: 0.15),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        '$size:$qty',
+                                        style: TextStyle(
+                                          color: isOut ? Colors.red : isLow ? Colors.orange : Colors.grey[400],
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }
+
+                    // Sin colores: mostrar cada variante individual
+                    final sortedVariants = List<Map<String, dynamic>>.from(variants);
+                    sortedVariants.sort((a, b) {
+                      final sizeA = a['size'] as String? ?? '';
+                      final sizeB = b['size'] as String? ?? '';
+                      final indexA = sizeOrder.indexOf(sizeA.toUpperCase());
+                      final indexB = sizeOrder.indexOf(sizeB.toUpperCase());
+                      if (indexA == -1 && indexB == -1) return sizeA.compareTo(sizeB);
+                      if (indexA == -1) return 1;
+                      if (indexB == -1) return -1;
+                      return indexA.compareTo(indexB);
+                    });
                     
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.inventory_2_outlined,
-                            color: Colors.grey[500],
-                            size: 14,
-                          ),
+                          Icon(Icons.inventory_2_outlined, color: Colors.grey[500], size: 14),
                           const SizedBox(width: 6),
                           ...sortedVariants.map((v) {
                             final size = v['size'] as String? ?? '?';
@@ -1057,21 +1376,94 @@ class _ProductCard extends ConsumerWidget {
     );
   }
 
-  /// Muestra diálogo para EDITAR producto con stock por talla
-  void _showEditProductDialog(BuildContext context, WidgetRef ref, Map<String, dynamic> product) {
+  /// Muestra diálogo para EDITAR producto con campos completos
+  /// Usa RPC admin_update_product para bypassear RLS
+  Future<void> _showEditProductDialog(BuildContext context, WidgetRef ref, Map<String, dynamic> product) async {
     final nameController = TextEditingController(text: product['name']);
     final priceController = TextEditingController(text: (product['price'] ?? 0).toString());
+    final originalPriceController = TextEditingController(
+      text: product['original_price'] != null ? product['original_price'].toString() : '',
+    );
+    final discountPercentController = TextEditingController(
+      text: product['discount_percent'] != null ? product['discount_percent'].toString() : '',
+    );
+    final descriptionController = TextEditingController(text: product['description'] ?? '');
     bool isOffer = product['is_offer'] == true;
     bool isActive = product['active'] == true;
-    
-    // Stock por talla
-    final variants = List<Map<String, dynamic>>.from(product['variants'] ?? []);
-    final stockControllers = <String, TextEditingController>{};
-    for (final v in variants) {
-      final size = v['size'] as String? ?? '';
-      final stock = v['stock'] as int? ?? 0;
-      stockControllers[size] = TextEditingController(text: stock.toString());
+    bool isSaving = false;
+
+    // Categoría
+    final category = product['category'] as Map<String, dynamic>?;
+    String? selectedCategoryId = category?['id'] as String?;
+
+    // Imágenes existentes
+    final existingImages = (product['images'] as List? ?? [])
+        .map((img) => img['image_url'] as String)
+        .toList();
+    List<String> imageUrls = List<String>.from(existingImages);
+
+    // Color assignments for images
+    Map<String, String?> imageColorAssignments = {};
+    for (final img in (product['images'] as List? ?? [])) {
+      final url = img['image_url'] as String?;
+      final color = img['color'] as String?;
+      if (url != null && color != null) {
+        imageColorAssignments[url] = color;
+      }
     }
+
+    // Colores existentes del producto
+    // Si colors JSONB es null pero las variantes tienen color, inferirlos automáticamente
+    final existingColorsRaw = product['colors'] as List? ?? [];
+    List<ProductColor> productColors = existingColorsRaw
+        .where((c) => c is Map<String, dynamic>)
+        .map((c) => ProductColor.fromJson(c as Map<String, dynamic>))
+        .toList();
+    
+    if (productColors.isEmpty) {
+      // Auto-inferir colores desde las variantes existentes
+      final variantsList = product['variants'] as List? ?? [];
+      final Map<String, String> inferredColors = {};
+      for (final v in variantsList) {
+        final colorName = v['color'] as String?;
+        if (colorName != null && colorName.isNotEmpty && !inferredColors.containsKey(colorName)) {
+          // Intentar obtener hex de las imágenes
+          String hex = '#808080';
+          for (final img in (product['images'] as List? ?? [])) {
+            if (img['color'] == colorName && img['color_hex'] != null) {
+              hex = img['color_hex'] as String;
+              break;
+            }
+          }
+          inferredColors[colorName] = hex;
+        }
+      }
+      if (inferredColors.isNotEmpty) {
+        productColors = inferredColors.entries
+            .map((e) => ProductColor(name: e.key, hex: e.value))
+            .toList();
+      }
+    }
+
+    // Variantes existentes (tallas con stock y color)
+    final existingVariants = (product['variants'] as List? ?? [])
+        .map((v) => <String, dynamic>{
+              'size': v['size'] as String? ?? '',
+              'stock': v['stock'] as int? ?? 0,
+              'sku': v['sku'] as String?,
+              if (v['color'] != null) 'color': v['color'] as String,
+            })
+        .toList();
+    List<Map<String, dynamic>> variants = List<Map<String, dynamic>>.from(existingVariants);
+
+    // Pre-cargar categorías antes de abrir el modal (evita loading infinito)
+    List<Map<String, dynamic>> categories = [];
+    try {
+      categories = ref.read(adminCategoriesProvider).valueOrNull ?? 
+          await ref.read(adminCategoriesProvider.future);
+    } catch (_) {}
+    final admin = ref.read(adminSessionProvider);
+    final parentScaffoldMessenger = ScaffoldMessenger.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -1082,222 +1474,344 @@ class _ProductCard extends ConsumerWidget {
           padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.85,
+              maxHeight: MediaQuery.of(context).size.height * 0.92,
             ),
             decoration: const BoxDecoration(
               color: Color(0xFF12121A),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[700],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Editar Producto',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      // Handle
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[700],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
-                  // Nombre
-                  _buildTextField(
-                    controller: nameController,
-                    label: 'Nombre',
-                    icon: Icons.label_outline,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Precio
-                  _buildTextField(
-                    controller: priceController,
-                    label: 'Precio (€)',
-                    icon: Icons.euro,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Stock por talla
-                  if (variants.isNotEmpty) ...[
-                    Text(
-                      'Stock por Talla',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A24),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: stockControllers.entries.map((entry) {
-                          return SizedBox(
-                            width: 80,
-                            child: TextField(
-                              controller: entry.value,
-                              keyboardType: TextInputType.number,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.white, fontSize: 16),
-                              decoration: InputDecoration(
-                                labelText: entry.key,
-                                labelStyle: const TextStyle(color: AppColors.neonCyan, fontSize: 12),
-                                filled: true,
-                                fillColor: const Color(0xFF0D0D14),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: AppColors.neonCyan),
-                                ),
-                              ),
+                      // Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Editar Producto',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                        }).toList(),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 20),
 
-                  // Switches
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A24),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Producto activo', style: TextStyle(color: Colors.white)),
-                            Switch(
-                              value: isActive,
-                              onChanged: (v) => setModalState(() => isActive = v),
-                              activeColor: AppColors.neonCyan,
-                            ),
-                          ],
-                        ),
-                        const Divider(color: Colors.grey, height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Es oferta', style: TextStyle(color: Colors.white)),
-                            Switch(
-                              value: isOffer,
-                              onChanged: (v) => setModalState(() => isOffer = v),
-                              activeColor: AppColors.neonFuchsia,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+                      // ─── Imágenes ───
+                      CloudinaryMultiImageUploader(
+                        imageUrls: imageUrls,
+                        folder: CloudinaryService.folderProducts,
+                        label: 'Imágenes del producto',
+                        maxImages: 8,
+                        onChanged: (urls) => setModalState(() => imageUrls = urls),
+                        availableColors: productColors.map((c) => {'name': c.name, 'hex': c.hex}).toList(),
+                        imageColorAssignments: imageColorAssignments,
+                        onColorAssignmentsChanged: (assignments) => setModalState(() => imageColorAssignments = assignments),
+                      ),
+                      const SizedBox(height: 20),
 
-                  // Botón guardar
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final supabase = Supabase.instance.client;
-                        
-                        try {
-                          // Actualizar producto
-                          await supabase.from('products').update({
-                            'name': nameController.text,
-                            'price': double.tryParse(priceController.text) ?? 0,
-                            'is_offer': isOffer,
-                            'active': isActive,
-                          }).eq('id', product['id']);
+                      // Nombre
+                      _buildTextField(
+                        controller: nameController,
+                        label: 'Nombre',
+                        icon: Icons.label_outline,
+                      ),
+                      const SizedBox(height: 16),
 
-                          // Actualizar stock por talla
-                          for (final entry in stockControllers.entries) {
-                            final size = entry.key;
-                            final newStock = int.tryParse(entry.value.text) ?? 0;
-                            
-                            await supabase
-                                .from('product_variants')
-                                .update({'stock': newStock})
-                                .eq('product_id', product['id'])
-                                .eq('size', size);
-                          }
-
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            ref.invalidate(adminProductsProvider);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Producto actualizado correctamente'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error al actualizar: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.neonCyan,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
+                      // ─── Categoría selector ───
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A24),
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        child: DropdownButtonFormField<String>(
+                          value: selectedCategoryId,
+                          decoration: InputDecoration(
+                            labelText: 'Categoría',
+                            labelStyle: TextStyle(color: Colors.grey[500]),
+                            prefixIcon: const Icon(Icons.category_outlined, color: AppColors.neonCyan),
+                            border: InputBorder.none,
+                          ),
+                          dropdownColor: const Color(0xFF1A1A24),
+                          style: const TextStyle(color: Colors.white),
+                          items: [
+                            const DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('Sin categoría', style: TextStyle(color: Colors.grey)),
+                            ),
+                            ...categories.map((cat) => DropdownMenuItem<String>(
+                                  value: cat['id'] as String,
+                                  child: Text(cat['name'] as String? ?? ''),
+                                )),
+                          ],
+                          onChanged: (value) => setModalState(() => selectedCategoryId = value),
+                        ),
                       ),
-                      child: const Text(
-                        'Guardar Cambios',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      const SizedBox(height: 16),
+
+                      // ─── Precios ───
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: priceController,
+                              label: 'Precio (€)',
+                              icon: Icons.euro,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: originalPriceController,
+                              label: 'Precio original (€)',
+                              icon: Icons.price_change_outlined,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Descuento
+                      _buildTextField(
+                        controller: discountPercentController,
+                        label: 'Descuento (%)',
+                        icon: Icons.percent,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Descripción
+                      _buildTextField(
+                        controller: descriptionController,
+                        label: 'Descripción',
+                        icon: Icons.description_outlined,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ─── COLORES DEL PRODUCTO ───
+                      ColorEditorWidget(
+                        initialColors: productColors,
+                        onChanged: (colors) => setModalState(() => productColors = colors),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // ─── VARIANTES (Tallas con Stock) ───
+                      const Text(
+                        'Stock por Talla',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        productColors.isEmpty
+                            ? 'Edita el stock por cada talla'
+                            : 'Edita el stock por cada talla × color',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      ),
+                      const SizedBox(height: 12),
+                      VariantEditorWidget(
+                        initialVariants: existingVariants,
+                        onChanged: (v) => variants = v,
+                        colors: productColors,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Switches
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A24),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Producto activo', style: TextStyle(color: Colors.white)),
+                                Switch(
+                                  value: isActive,
+                                  onChanged: (v) => setModalState(() => isActive = v),
+                                  activeColor: AppColors.neonCyan,
+                                ),
+                              ],
+                            ),
+                            const Divider(color: Colors.grey, height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Es oferta', style: TextStyle(color: Colors.white)),
+                                Switch(
+                                  value: isOffer,
+                                  onChanged: (v) => setModalState(() => isOffer = v),
+                                  activeColor: AppColors.neonFuchsia,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Botón guardar
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isSaving ? null : () async {
+                            setModalState(() => isSaving = true);
+                            final supabase = Supabase.instance.client;
+                            
+                            try {
+                              // Construir sizes array
+                              final sizes = variants.map((v) => v['size'] as String).toSet().toList();
+
+                              // Construir colors JSONB
+                              final colorsJson = productColors.map((c) => c.toJson()).toList();
+
+                              final updateData = <String, dynamic>{
+                                'name': nameController.text.trim(),
+                                'price': double.tryParse(priceController.text) ?? 0,
+                                'is_offer': isOffer,
+                                'active': isActive,
+                                'category_id': selectedCategoryId,
+                                'description': descriptionController.text.isNotEmpty
+                                    ? descriptionController.text.trim()
+                                    : null,
+                                'sizes': sizes,
+                                'variants': variants,
+                                'colors': colorsJson,
+                              };
+
+                              final originalPrice = double.tryParse(originalPriceController.text);
+                              updateData['original_price'] = originalPrice;
+
+                              final discountPercent = int.tryParse(discountPercentController.text);
+                              updateData['discount_percent'] = discountPercent;
+
+                              // Actualizar imágenes (siempre enviar para actualizar colores)
+                              updateData['images'] = imageUrls
+                                  .asMap()
+                                  .entries
+                                  .map((entry) {
+                                    final imgData = <String, dynamic>{
+                                      'image_url': entry.value,
+                                      'order': entry.key,
+                                    };
+                                    final assignedColor = imageColorAssignments[entry.value];
+                                    if (assignedColor != null) {
+                                      imgData['color'] = assignedColor;
+                                      final colorMatch = productColors.where((c) => c.name == assignedColor).firstOrNull;
+                                      if (colorMatch != null) {
+                                        imgData['color_hex'] = colorMatch.hex;
+                                      }
+                                    }
+                                    return imgData;
+                                  })
+                                  .toList();
+
+                              // Llamar al RPC (SECURITY DEFINER bypassea RLS)
+                              await supabase.rpc(
+                                'admin_update_product',
+                                params: {
+                                  'p_admin_email': admin?.email ?? '',
+                                  'p_product_id': product['id'],
+                                  'p_data': updateData,
+                                },
+                              );
+
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ref.invalidate(adminProductsProvider);
+                                ref.invalidate(adminDashboardStatsProvider);
+                                parentScaffoldMessenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text('✅ Producto actualizado correctamente'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() => isSaving = false);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                parentScaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error al actualizar: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.neonCyan,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Guardar Cambios',
+                                  style: TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                // Loading overlay
+                if (isSaving)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      child: const Center(
+                        child: CircularProgressIndicator(color: AppColors.neonCyan),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+              ],
             ),
           ),
         ),
@@ -1310,10 +1824,12 @@ class _ProductCard extends ConsumerWidget {
     required String label,
     required IconData icon,
     TextInputType? keyboardType,
+    int maxLines = 1,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      maxLines: maxLines,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

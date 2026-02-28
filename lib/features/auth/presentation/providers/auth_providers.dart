@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/customer_model.dart';
 
 part 'auth_providers.g.dart';
@@ -104,6 +105,29 @@ class AuthNotifier extends _$AuthNotifier {
           'full_name': fullName,
           'newsletter': newsletter,
         });
+
+        // Enviar email de bienvenida vía API de FashionStore
+        try {
+          await FashionStoreApiService.sendWelcomeEmail(
+            to: email,
+            name: fullName ?? email.split('@').first,
+          );
+        } catch (_) {
+          // No bloquear el registro si falla el email
+        }
+
+        // Si aceptó newsletter, suscribir vía API (envía email con código promo)
+        if (newsletter) {
+          try {
+            await FashionStoreApiService.subscribeNewsletter(
+              email: email,
+              name: fullName,
+              source: 'flutter_register',
+            );
+          } catch (_) {
+            // No bloquear el registro si falla la suscripción
+          }
+        }
       }
 
       state = const AsyncData(null);

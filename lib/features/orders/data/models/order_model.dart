@@ -8,7 +8,10 @@ enum OrderStatus {
   paid,
   shipped,
   delivered,
-  cancelled;
+  cancelled,
+  returnRequested,
+  returned,
+  partialReturn;
 
   static OrderStatus fromString(String? value) {
     switch (value) {
@@ -22,6 +25,12 @@ enum OrderStatus {
         return OrderStatus.delivered;
       case 'cancelled':
         return OrderStatus.cancelled;
+      case 'return_requested':
+        return OrderStatus.returnRequested;
+      case 'returned':
+        return OrderStatus.returned;
+      case 'partial_return':
+        return OrderStatus.partialReturn;
       default:
         return OrderStatus.pending;
     }
@@ -39,6 +48,12 @@ enum OrderStatus {
         return 'Entregado';
       case OrderStatus.cancelled:
         return 'Cancelado';
+      case OrderStatus.returnRequested:
+        return 'Devolución solicitada';
+      case OrderStatus.returned:
+        return 'Devuelto';
+      case OrderStatus.partialReturn:
+        return 'Devolución parcial';
     }
   }
 
@@ -54,11 +69,17 @@ enum OrderStatus {
         return 'Pedido entregado';
       case OrderStatus.cancelled:
         return 'Pedido cancelado';
+      case OrderStatus.returnRequested:
+        return 'Se ha solicitado la devolución';
+      case OrderStatus.returned:
+        return 'Pedido devuelto y reembolsado';
+      case OrderStatus.partialReturn:
+        return 'Devolución parcial procesada';
     }
   }
 
   bool get canCancel => this == OrderStatus.pending || this == OrderStatus.paid;
-  bool get canRequestReturn => this == OrderStatus.delivered;
+  bool get canRequestReturn => this == OrderStatus.delivered || this == OrderStatus.partialReturn;
 }
 
 /// Modelo de Pedido
@@ -179,6 +200,7 @@ class OrderItemModel with _$OrderItemModel {
     String? productImage,
     required int quantity,
     required String size,
+    String? color,
     required double priceAtPurchase,
     DateTime? createdAt,
   }) = _OrderItemModel;
@@ -195,6 +217,7 @@ class OrderItemModel with _$OrderItemModel {
         productImage: json['product_image'] as String?,
         quantity: json['quantity'] as int,
         size: json['size'] as String,
+        color: json['color'] as String?,
         priceAtPurchase: (json['price_at_purchase'] as num).toDouble(),
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)

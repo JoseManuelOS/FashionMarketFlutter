@@ -27,7 +27,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -185,7 +185,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
@@ -245,7 +245,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.neonCyan.withOpacity(0.1),
+                  color: AppColors.neonCyan.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -261,7 +261,7 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
           ),
 
           const SizedBox(height: 12),
-          Divider(color: Colors.white.withOpacity(0.05)),
+          Divider(color: Colors.white.withValues(alpha: 0.05)),
           const SizedBox(height: 8),
 
           // Stats row

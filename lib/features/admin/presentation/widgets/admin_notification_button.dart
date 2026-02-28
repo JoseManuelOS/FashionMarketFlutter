@@ -38,7 +38,7 @@ class AdminNotificationButton extends ConsumerWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.neonFuchsia.withOpacity(0.5),
+                      color: AppColors.neonFuchsia.withValues(alpha: 0.5),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),
@@ -92,7 +92,7 @@ class AdminNotificationSummaryCard extends ConsumerWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF12121A),
             border: Border.all(
-              color: AppColors.neonFuchsia.withOpacity(0.3),
+              color: AppColors.neonFuchsia.withValues(alpha: 0.3),
             ),
             borderRadius: BorderRadius.circular(16),
           ),
@@ -211,9 +211,9 @@ class _NotificationBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
         ),
         borderRadius: BorderRadius.circular(20),
       ),

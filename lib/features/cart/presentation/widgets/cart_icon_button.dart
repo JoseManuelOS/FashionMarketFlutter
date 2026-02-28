@@ -53,7 +53,7 @@ class CartIconButton extends ConsumerWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.neonCyan.withOpacity(0.4),
+                    color: AppColors.neonCyan.withValues(alpha: 0.4),
                     blurRadius: 8,
                     spreadRadius: 1,
                   ),

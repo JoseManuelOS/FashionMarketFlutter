@@ -33,7 +33,7 @@ class CheckoutSuccessScreen extends StatelessWidget {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.neonCyan.withOpacity(0.4),
+                      color: AppColors.neonCyan.withValues(alpha: 0.4),
                       blurRadius: 30,
                       spreadRadius: 5,
                     ),
@@ -66,7 +66,7 @@ class CheckoutSuccessScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.dark400,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

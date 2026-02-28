@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:http/http.dart' as http;
 
-import '../../config/constants/app_constants.dart';
 import '../../config/theme/app_colors.dart';
+import '../services/fashion_store_api_service.dart';
 
 /// Clave Hive para marcar si ya se mostró/subscribed el newsletter
 const _kNewsletterShownKey = 'newsletter_popup_shown';
@@ -18,18 +16,31 @@ final shouldShowNewsletterProvider = Provider<bool>((ref) {
 });
 
 /// Suscribir al newsletter vía API de FashionStore
-/// (la API inserta en BD + envía email de bienvenida con código WELCOME10 via Resend)
+/// Envía email de bienvenida con código promo WELCOME10
 Future<Map<String, dynamic>> subscribeToNewsletter(String email) async {
-  final response = await http.post(
-    Uri.parse('${AppConstants.fashionStoreBaseUrl}/api/newsletter/subscribe'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({'email': email, 'source': 'flutter_app'}),
-  );
+  try {
+    final result = await FashionStoreApiService.subscribeNewsletter(
+      email: email,
+      source: 'flutter_popup',
+    );
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body) as Map<String, dynamic>;
-  } else {
-    throw Exception('Error al suscribirse');
+    if (result['success'] == true) {
+      return {
+        'success': true,
+        'promo_code': result['promo_code'] ?? 'WELCOME10',
+        'message': result['message'] ?? 'Suscripción completada',
+      };
+    } else if (result['already_subscribed'] == true) {
+      return {
+        'success': true,
+        'promo_code': 'WELCOME10',
+        'message': 'Ya estás suscrito',
+      };
+    } else {
+      throw Exception(result['error'] ?? 'Error desconocido');
+    }
+  } catch (e) {
+    rethrow;
   }
 }
 
@@ -135,7 +146,7 @@ class _NewsletterBottomSheetState extends State<_NewsletterBottomSheet> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.15),
+                  color: Colors.green.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.check_rounded, color: Colors.green, size: 32),
@@ -162,12 +173,12 @@ class _NewsletterBottomSheetState extends State<_NewsletterBottomSheet> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        AppColors.neonCyan.withOpacity(0.15),
-                        AppColors.neonFuchsia.withOpacity(0.15),
+                        AppColors.neonCyan.withValues(alpha: 0.15),
+                        AppColors.neonFuchsia.withValues(alpha: 0.15),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.neonCyan.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.3)),
                   ),
                   child: Column(
                     children: [
@@ -268,7 +279,7 @@ class _NewsletterBottomSheetState extends State<_NewsletterBottomSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.neonCyan,
                     foregroundColor: Colors.black,
-                    disabledBackgroundColor: AppColors.neonCyan.withOpacity(0.4),
+                    disabledBackgroundColor: AppColors.neonCyan.withValues(alpha: 0.4),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

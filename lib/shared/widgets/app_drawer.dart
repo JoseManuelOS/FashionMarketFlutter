@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../config/router/app_router.dart';
 import '../../config/theme/app_colors.dart';
@@ -187,7 +188,7 @@ class AppDrawer extends ConsumerWidget {
                     label: const Text('Cerrar sesión'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red[400],
-                      side: BorderSide(color: Colors.red[400]!.withOpacity(0.4)),
+                      side: BorderSide(color: Colors.red[400]!.withValues(alpha: 0.4)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -208,8 +209,8 @@ class AppDrawer extends ConsumerWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.neonCyan.withOpacity(0.08),
-            AppColors.neonFuchsia.withOpacity(0.05),
+            AppColors.neonCyan.withValues(alpha: 0.08),
+            AppColors.neonFuchsia.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -245,14 +246,10 @@ class AppDrawer extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'FASHION MARKET',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                  ),
+                SvgPicture.asset(
+                  'assets/logo/logo.svg',
+                  height: 24,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 2),
                 Text(

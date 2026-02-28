@@ -63,7 +63,7 @@ final currentCustomerProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef CurrentCustomerRef = AutoDisposeFutureProviderRef<CustomerModel?>;
-String _$authNotifierHash() => r'1af4256180a18682e847b54e4956a098de7934d5';
+String _$authNotifierHash() => r'a715705a6adb99a595d8b025dfaf34644fd05da0';
 
 /// Notifier para manejar operaciones de autenticación
 ///

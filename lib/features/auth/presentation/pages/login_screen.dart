@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
@@ -43,24 +45,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
+    // 1. Intentar login como admin primero (RPC verify_admin_credentials)
     try {
-      // 🔐 Primero intentar login como admin
-      try {
-        final admin = await ref.read(adminAuthProvider.notifier).signIn(
-              email: email,
-              password: password,
-            );
-
-        if (admin != null && mounted) {
-          // Es admin, redirigir al dashboard de admin
-          context.go(AppRoutes.adminDashboard);
-          return;
-        }
-      } catch (_) {
-        // No es admin, continuar con login normal
+      final admin = await ref.read(adminAuthProvider.notifier).signIn(
+            email: email,
+            password: password,
+          );
+      if (admin != null && mounted) {
+        context.go(AppRoutes.adminDashboard);
+        return;
       }
+    } catch (_) {
+      // No es admin o la tabla no existe — continuar con login normal
+    }
 
-      // 👤 Login normal de usuario
+    // 2. Login de usuario con Supabase Auth
+    try {
       await ref.read(authNotifierProvider.notifier).signInWithEmail(
             email: email,
             password: password,
@@ -70,10 +70,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go(AppRoutes.home);
       }
     } catch (e) {
-      print('❌ Error login usuario: $e');
-      setState(() {
-        _errorMessage = _getErrorMessage(e);
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = _getErrorMessage(e);
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -95,6 +96,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Escuchar cambios de auth (OAuth callback vía deep link)
+    ref.listen(authStateProvider, (previous, next) {
+      next.whenData((authState) {
+        if (authState.event == AuthChangeEvent.signedIn && mounted) {
+          context.go(AppRoutes.home);
+        }
+      });
+    });
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -108,15 +118,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 40),
 
                 // Logo / Título
-                Text(
-                  'FASHION\nMARKET',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                    height: 1.2,
+                Center(
+                  child: SvgPicture.asset(
+                    'assets/logo/logo.svg',
+                    height: 48,
+                    fit: BoxFit.contain,
                   ),
                 ),
 
@@ -138,9 +144,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withOpacity(0.1),
+                      color: AppColors.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -271,7 +277,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Google login
                 SocialLoginButton.google(
                   onPressed: () async {
-                    await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+                    setState(() {
+                      _errorMessage = null;
+                      _isLoading = true;
+                    });
+                    try {
+                      await ref.read(authNotifierProvider.notifier).signInWithGoogle();
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() {
+                          _errorMessage = 'Error al iniciar sesión con Google. Inténtalo de nuevo.';
+                        });
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
                   },
                 ),
 
@@ -280,7 +302,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Apple login
                 SocialLoginButton.apple(
                   onPressed: () async {
-                    await ref.read(authNotifierProvider.notifier).signInWithApple();
+                    setState(() {
+                      _errorMessage = null;
+                      _isLoading = true;
+                    });
+                    try {
+                      await ref.read(authNotifierProvider.notifier).signInWithApple();
+                    } catch (e) {
+                      if (mounted) {
+                        setState(() {
+                          _errorMessage = 'Error al iniciar sesión con Apple. Inténtalo de nuevo.';
+                        });
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                      }
+                    }
                   },
                 ),
 

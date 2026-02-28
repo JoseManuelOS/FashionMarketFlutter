@@ -12,7 +12,6 @@ import '../../features/cart/presentation/pages/cart_screen.dart';
 import '../../features/checkout/presentation/pages/checkout_screen.dart';
 import '../../features/checkout/presentation/pages/checkout_success_screen.dart';
 import '../../features/profile/presentation/pages/profile_screen.dart';
-import '../../features/admin/presentation/pages/admin_login_screen.dart';
 import '../../features/admin/presentation/pages/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/pages/admin_orders_screen.dart';
 import '../../features/admin/presentation/pages/admin_products_screen.dart';
@@ -24,6 +23,7 @@ import '../../features/admin/presentation/pages/admin_notifications_screen.dart'
 import '../../features/admin/presentation/pages/admin_invoices_screen.dart';
 import '../../features/admin/presentation/pages/admin_newsletter_screen.dart';
 import '../../features/admin/presentation/pages/admin_animations_screen.dart';
+import '../../features/admin/presentation/pages/admin_categories_screen.dart';
 import '../../features/orders/presentation/pages/orders_screen.dart';
 import '../../features/orders/presentation/pages/order_detail_screen.dart';
 import '../../features/favorites/presentation/pages/favorites_screen.dart';
@@ -243,12 +243,6 @@ class AppRouter {
       // ══════════════════════════════════════════════════════════════════════
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
-        path: AppRoutes.adminLogin,
-        name: 'adminLogin',
-        builder: (context, state) => const AdminLoginScreen(),
-      ),
-      GoRoute(
-        parentNavigatorKey: _rootNavigatorKey,
         path: AppRoutes.adminDashboard,
         name: 'adminDashboard',
         builder: (context, state) => const AdminDashboardScreen(),
@@ -306,6 +300,12 @@ class AppRouter {
         path: AppRoutes.adminNewsletter,
         name: 'adminNewsletter',
         builder: (context, state) => const AdminNewsletterScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: AppRoutes.adminCategories,
+        name: 'adminCategories',
+        builder: (context, state) => const AdminCategoriesScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
@@ -382,6 +382,7 @@ class AppRoutes {
   static const String adminNotifications = '/admin/notificaciones';
   static const String adminInvoices = '/admin/facturas';
   static const String adminNewsletter = '/admin/newsletter';
+  static const String adminCategories = '/admin/categorias';
   static const String adminAnimations = '/admin/animaciones';
 
   // Helpers para construir rutas con parámetros

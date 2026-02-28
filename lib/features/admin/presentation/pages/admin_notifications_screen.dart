@@ -115,8 +115,8 @@ class _AdminNotificationsScreenState extends ConsumerState<AdminNotificationsScr
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            AppColors.neonCyan.withOpacity(0.1),
-                            AppColors.neonPurple.withOpacity(0.1),
+                            AppColors.neonCyan.withValues(alpha: 0.1),
+                            AppColors.neonPurple.withValues(alpha: 0.1),
                           ],
                         ),
                         shape: BoxShape.circle,
@@ -227,7 +227,7 @@ class _NotificationCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.green.withOpacity(0.2),
+          color: Colors.green.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Icon(Icons.check, color: Colors.green),
@@ -244,8 +244,8 @@ class _NotificationCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: notification.isRead
-                  ? Colors.white.withOpacity(0.05)
-                  : typeColor.withOpacity(0.3),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : typeColor.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -258,8 +258,8 @@ class _NotificationCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      typeColor.withOpacity(0.2),
-                      typeColor.withOpacity(0.1),
+                      typeColor.withValues(alpha: 0.2),
+                      typeColor.withValues(alpha: 0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -301,7 +301,7 @@ class _NotificationCard extends StatelessWidget {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: typeColor.withOpacity(0.5),
+                                  color: typeColor.withValues(alpha: 0.5),
                                   blurRadius: 4,
                                 ),
                               ],

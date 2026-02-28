@@ -15,7 +15,8 @@ final productBySlugProvider = FutureProvider.family<ProductModel?, String>((ref,
       .select('''
         *,
         category:categories(*),
-        images:product_images(*)
+        images:product_images(*),
+        variants:product_variants(id, size, stock, sku)
       ''')
       .eq('slug', slug)
       .eq('active', true)

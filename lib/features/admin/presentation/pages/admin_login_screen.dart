@@ -50,17 +50,26 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
         context.go(AppRoutes.adminDashboard);
       }
     } catch (e) {
-      print('❌ Error en login: $e');
-      setState(() {
-        // Mostrar error más específico
-        if (e.toString().contains('PostgrestException')) {
-          _errorMessage = 'Error de conexión con la base de datos';
-        } else if (e.toString().contains('function verify_admin_credentials')) {
-          _errorMessage = 'La función de verificación no existe en la BD';
-        } else {
-          _errorMessage = 'Credenciales de administrador incorrectas';
-        }
-      });
+      print('❌ Error en login admin: $e');
+      if (mounted) {
+        setState(() {
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('verify_admin_credentials') ||
+              errorStr.contains('function') && errorStr.contains('does not exist')) {
+            _errorMessage =
+                'La función verify_admin_credentials no existe en la BD.\n'
+                'Ejecuta admin-schema.sql en Supabase SQL Editor.';
+          } else if (errorStr.contains('relation') && errorStr.contains('admins')) {
+            _errorMessage =
+                'La tabla admins no existe.\n'
+                'Ejecuta admin-schema.sql en Supabase SQL Editor.';
+          } else if (errorStr.contains('postgrestexception') || errorStr.contains('pgr')) {
+            _errorMessage = 'Error de base de datos: ${e.toString().length > 100 ? e.toString().substring(0, 100) : e}';
+          } else {
+            _errorMessage = 'Credenciales de administrador incorrectas';
+          }
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -94,7 +103,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.neonCyan.withOpacity(0.4),
+                          color: AppColors.neonCyan.withValues(alpha: 0.4),
                           blurRadius: 30,
                           spreadRadius: 2,
                         ),
@@ -137,9 +146,9 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
+                        color: Colors.red.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -297,7 +306,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey[800]!.withOpacity(0.5)),
+              borderSide: BorderSide(color: Colors.grey[800]!.withValues(alpha: 0.5)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

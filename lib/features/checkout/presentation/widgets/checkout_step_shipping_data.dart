@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../config/theme/app_colors.dart';
 import '../providers/checkout_providers.dart';
 
@@ -35,7 +37,11 @@ class _CheckoutStepShippingDataState
   void initState() {
     super.initState();
     final data = ref.read(checkoutDataProvider);
-    _emailController = TextEditingController(text: data.email);
+    // Pre-fill email from Supabase auth if not already set
+    final authEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+    _emailController = TextEditingController(
+      text: data.email.isNotEmpty ? data.email : authEmail,
+    );
     _phoneController = TextEditingController(text: data.phone);
     _nameController = TextEditingController(text: data.fullName);
     _streetController = TextEditingController(text: data.street);

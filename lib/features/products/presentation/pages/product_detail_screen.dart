@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../config/theme/app_colors.dart';
+import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/product_model.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../cart/data/models/cart_item_model.dart';
@@ -34,6 +36,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _isAdding = false;
   bool _showSuccess = false;
 
+  /// Stock en tiempo real por talla (obtenido de la API)
+  Map<String, int>? _liveStockBySize;
+
   @override
   void initState() {
     super.initState();
@@ -41,11 +46,39 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (widget.product.sizes.isNotEmpty) {
       _selectedSize = widget.product.sizes.first;
     }
+    // Obtener stock en tiempo real desde la API
+    _fetchLiveStock();
+  }
+
+  /// Obtiene el stock real por talla desde la API de FashionStore
+  Future<void> _fetchLiveStock() async {
+    try {
+      final result = await FashionStoreApiService.getStockBySize(
+        productId: widget.product.id,
+      );
+      if (mounted) {
+        final stockBySize = result['stockBySize'];
+        if (stockBySize != null && stockBySize is Map) {
+          setState(() {
+            _liveStockBySize = Map<String, int>.from(
+              stockBySize.map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+            );
+          });
+        }
+      }
+    } catch (_) {
+      // Silently fall back to initial stockBySize from model
+    }
+  }
+
+  /// Stock por talla: prioriza datos en tiempo real, luego los del modelo
+  Map<String, int> get _effectiveStockBySize {
+    return _liveStockBySize ?? widget.product.stockBySize ?? {};
   }
 
   int get _currentSizeStock {
     if (_selectedSize == null) return widget.product.stock;
-    return widget.product.stockBySize?[_selectedSize] ?? widget.product.stock;
+    return _effectiveStockBySize[_selectedSize] ?? widget.product.stock;
   }
 
   bool get _isOutOfStock => _currentSizeStock <= 0;
@@ -219,7 +252,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                           SizeSelector(
                             sizes: product.sizes,
                             selectedSize: _selectedSize,
-                            stockBySize: product.stockBySize ?? {},
+                            stockBySize: _effectiveStockBySize,
                             onSizeSelected: (size) {
                               setState(() {
                                 _selectedSize = size;
@@ -443,6 +476,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           icon: Icons.share_rounded,
           onTap: _shareProduct,
         ),
+        const SizedBox(width: 8),
+        // Carrito con badge de cantidad
+        _buildCartButton(context),
         const SizedBox(width: 16),
       ],
       flexibleSpace: FlexibleSpaceBar(
@@ -500,6 +536,54 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             height: 40,
             alignment: Alignment.center,
             child: Icon(icon, color: iconColor, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartButton(BuildContext context) {
+    final cartCount = ref.watch(cartItemCountProvider);
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: AppColors.dark500.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => context.push(AppRoutes.cart),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 20),
+                if (cartCount > 0)
+                  Positioned(
+                    top: -6,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        color: AppColors.neonFuchsia,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        cartCount > 9 ? '9+' : '$cartCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

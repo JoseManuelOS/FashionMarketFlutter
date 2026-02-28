@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../shared/widgets/app_drawer.dart';
@@ -89,17 +90,13 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       floating: true,
-      backgroundColor: AppColors.dark500.withOpacity(0.95),
+      backgroundColor: AppColors.dark500.withValues(alpha: 0.95),
       elevation: 0,
       centerTitle: true,
-      title: Text(
-        'FASHION MARKET',
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 2,
-        ),
+      title: SvgPicture.asset(
+        'assets/logo/logo.svg',
+        height: 32,
+        fit: BoxFit.contain,
       ),
       leading: IconButton(
         icon: const Icon(Icons.menu, color: AppColors.textPrimary),
@@ -141,7 +138,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   // Imagen
                   CachedNetworkImage(
-                    imageUrl: slide.responsiveImage,
+                    imageUrl: slide.imageUrl,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Shimmer.fromColors(
                       baseColor: AppColors.dark400,
@@ -163,7 +160,7 @@ class HomeScreen extends ConsumerWidget {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          AppColors.dark600.withOpacity(0.8),
+                          AppColors.dark600.withValues(alpha: 0.8),
                         ],
                       ),
                     ),

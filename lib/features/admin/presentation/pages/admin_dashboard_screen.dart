@@ -7,6 +7,7 @@ import '../../../../config/router/app_router.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
+import '../widgets/sales_chart_widget.dart';
 
 /// Dashboard principal del administrador
 class AdminDashboardScreen extends ConsumerWidget {
@@ -21,7 +22,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     if (admin == null) {
       // Si no hay sesión, redirigir al login
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -56,6 +57,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(adminDashboardStatsProvider);
           ref.invalidate(adminRecentProductsProvider);
+          ref.invalidate(adminSalesProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -91,7 +93,12 @@ class AdminDashboardScreen extends ConsumerWidget {
                 data: (stats) => _buildStatsGrid(stats),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Gráfico de ventas
+              const SalesChartWidget(compact: true),
+
+              const SizedBox(height: 8),
 
               // Acciones rápidas
               const Text(
@@ -157,7 +164,7 @@ class AdminDashboardScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Text(
@@ -168,37 +175,64 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildStatsGrid(Map<String, dynamic> stats) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
+    return Column(
       children: [
-        _buildStatCard(
-          label: 'Productos',
-          value: '${stats['totalProducts']}',
-          color: AppColors.neonCyan,
-          icon: Icons.inventory_2_outlined,
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: [
+            _buildStatCard(
+              label: 'Productos',
+              value: '${stats['totalProducts']}',
+              color: AppColors.neonCyan,
+              icon: Icons.inventory_2_outlined,
+            ),
+            _buildStatCard(
+              label: 'Pedidos Pendientes',
+              value: '${stats['pendingOrders']}',
+              color: AppColors.neonFuchsia,
+              icon: Icons.shopping_bag_outlined,
+            ),
+            _buildStatCard(
+              label: 'Stock Bajo',
+              value: '${stats['lowStockProducts']}',
+              color: Colors.amber,
+              icon: Icons.warning_outlined,
+            ),
+            _buildStatCard(
+              label: 'Ventas del Mes',
+              value: '€${(stats['monthlySales'] as double).toStringAsFixed(0)}',
+              color: Colors.green,
+              icon: Icons.trending_up,
+            ),
+          ],
         ),
-        _buildStatCard(
-          label: 'Pedidos Pendientes',
-          value: '${stats['pendingOrders']}',
-          color: AppColors.neonFuchsia,
-          icon: Icons.shopping_bag_outlined,
-        ),
-        _buildStatCard(
-          label: 'Stock Bajo',
-          value: '${stats['lowStockProducts']}',
-          color: Colors.amber,
-          icon: Icons.warning_outlined,
-        ),
-        _buildStatCard(
-          label: 'Ventas del Mes',
-          value: '€${(stats['monthlySales'] as double).toStringAsFixed(0)}',
-          color: Colors.green,
-          icon: Icons.trending_up,
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: [
+            _buildStatCard(
+              label: 'Clientes',
+              value: '${stats['totalCustomers'] ?? 0}',
+              color: AppColors.neonPurple,
+              icon: Icons.people_outline,
+            ),
+            _buildStatCard(
+              label: 'En Oferta',
+              value: '${stats['offerProducts'] ?? 0}',
+              color: Colors.orange,
+              icon: Icons.local_offer_outlined,
+            ),
+          ],
         ),
       ],
     );
@@ -215,7 +249,7 @@ class AdminDashboardScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +263,7 @@ class AdminDashboardScreen extends ConsumerWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.5),
+                  color: color.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -268,9 +302,7 @@ class AdminDashboardScreen extends ConsumerWidget {
             icon: Icons.add_box_outlined,
             label: 'Nuevo Producto',
             color: AppColors.neonCyan,
-            onTap: () {
-              // TODO: Navigate to create product
-            },
+            onTap: () => context.push(AppRoutes.adminProducts),
           ),
         ),
         const SizedBox(width: 12),
@@ -298,9 +330,9 @@ class AdminDashboardScreen extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -343,14 +375,14 @@ class AdminDashboardScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: products.length,
         separatorBuilder: (_, __) => Divider(
-          color: Colors.white.withOpacity(0.05),
+          color: Colors.white.withValues(alpha: 0.05),
           height: 1,
         ),
         itemBuilder: (context, index) {
@@ -397,8 +429,8 @@ class AdminDashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: product['active'] == true
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(

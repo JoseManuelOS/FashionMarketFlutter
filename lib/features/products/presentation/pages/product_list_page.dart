@@ -45,7 +45,7 @@ class ProductListPage extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.dark500.withOpacity(0.95),
+        backgroundColor: AppColors.dark500.withValues(alpha: 0.95),
         title: Text(
           title,
           style: const TextStyle(

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
@@ -78,7 +79,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
@@ -144,7 +145,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFF0D0D14),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withOpacity(0.05)),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: SingleChildScrollView(
@@ -158,6 +159,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                   _buildFilterChip('Enviados', 'shipped'),
                   const SizedBox(width: 8),
                   _buildFilterChip('Entregados', 'delivered'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Devoluciones', 'return_requested'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Devueltos', 'returned'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Dev. parcial', 'partial_return'),
                   const SizedBox(width: 8),
                   _buildFilterChip('Cancelados', 'cancelled'),
                 ],
@@ -283,7 +290,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         });
       },
       backgroundColor: const Color(0xFF12121A),
-      selectedColor: AppColors.neonCyan.withOpacity(0.2),
+      selectedColor: AppColors.neonCyan.withValues(alpha: 0.2),
       labelStyle: TextStyle(
         color: isSelected ? AppColors.neonCyan : Colors.grey[400],
         fontSize: 13,
@@ -308,7 +315,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,9 +348,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: statusInfo['color'].withOpacity(0.1),
+                  color: statusInfo['color'].withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusInfo['color'].withOpacity(0.3)),
+                  border: Border.all(color: statusInfo['color'].withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -442,6 +449,15 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       color: Colors.green,
                       onTap: () => _updateOrderStatus(order['id'], 'delivered'),
                     ),
+                  if (status == 'delivered' || status == 'return_requested' || status == 'partial_return')
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildActionButton(
+                        icon: Icons.assignment_return_outlined,
+                        color: Colors.teal,
+                        onTap: () => _showPartialReturnDialog(order),
+                      ),
+                    ),
                   const SizedBox(width: 8),
                   _buildActionButton(
                     icon: Icons.visibility_outlined,
@@ -468,7 +484,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: color, size: 20),
@@ -508,6 +524,24 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           'color': Colors.red,
           'icon': Icons.cancel,
         };
+      case 'return_requested':
+        return {
+          'label': 'Devolución solicitada',
+          'color': Colors.amber,
+          'icon': Icons.assignment_return,
+        };
+      case 'returned':
+        return {
+          'label': 'Devuelto',
+          'color': Colors.deepOrange,
+          'icon': Icons.assignment_returned,
+        };
+      case 'partial_return':
+        return {
+          'label': 'Devolución parcial',
+          'color': Colors.teal,
+          'icon': Icons.assignment_return_outlined,
+        };
       default:
         return {
           'label': status,
@@ -523,6 +557,51 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
   Future<void> _updateOrderStatus(dynamic orderId, String newStatus) async {
     try {
+      final admin = ref.read(adminSessionProvider);
+
+      // ── Cancelar pedido vía API (reembolso + email automático) ──
+      if (newStatus == 'cancelled' && admin != null) {
+        final result = await FashionStoreApiService.adminCancelOrder(
+          orderId: orderId.toString(),
+          adminEmail: admin.email,
+        );
+        if (result['success'] != true) {
+          throw Exception(result['error'] ?? 'Error al cancelar');
+        }
+        ref.invalidate(adminOrdersProvider(_selectedStatus));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pedido cancelado - Reembolso y email enviados'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        return;
+      }
+
+      // ── Aceptar devolución vía API (reembolso + email automático) ──
+      if (newStatus == 'returned' && admin != null) {
+        final result = await FashionStoreApiService.acceptReturn(
+          orderId: orderId.toString(),
+          adminEmail: admin.email,
+        );
+        if (result['success'] != true) {
+          throw Exception(result['error'] ?? 'Error al aceptar devolución');
+        }
+        ref.invalidate(adminOrdersProvider(_selectedStatus));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Devolución aceptada - Reembolso y email enviados'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        return;
+      }
+
+      // ── Otros cambios de estado (directos a Supabase) ──
       final supabase = ref.read(supabaseProvider);
       final updateData = <String, dynamic>{'status': newStatus};
       
@@ -536,12 +615,53 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           .update(updateData)
           .eq('id', orderId);
 
+      // ── Enviar email de entrega al cliente ──
+      if (newStatus == 'delivered') {
+        try {
+          // Obtener datos del pedido para el email
+          final orderData = await supabase
+              .from('orders')
+              .select('*, items:order_items(*)')
+              .eq('id', orderId)
+              .single();
+
+          final customerEmail = orderData['customer_email'] as String?;
+          final customerName = orderData['customer_name'] as String? ?? 'Cliente';
+          final orderNumber = orderData['order_number'];
+          final orderRef = orderNumber != null 
+              ? orderNumber.toString() 
+              : orderId.toString().substring(0, 8).toUpperCase();
+          final total = (orderData['total'] ?? 0).toDouble();
+          final items = (orderData['items'] as List?)?.map((item) => {
+            'name': item['product_name'] ?? '',
+            'size': item['size'] ?? '',
+            'quantity': item['quantity'] ?? 1,
+            'price': item['unit_price'] ?? item['price'] ?? 0,
+            'image': item['product_image'] ?? '',
+          }).toList();
+
+          if (customerEmail != null) {
+            await FashionStoreApiService.sendOrderDelivered(
+              to: customerEmail,
+              customerName: customerName,
+              orderRef: orderRef,
+              orderItems: items,
+              totalPrice: total,
+            );
+          }
+        } catch (_) {
+          // No bloquear la actualización si falla el email
+        }
+      }
+
       ref.invalidate(adminOrdersProvider(_selectedStatus));
 
       if (mounted) {
+        final statusLabel = _getStatusInfo(newStatus)['label'];
+        final emailSent = newStatus == 'delivered' ? ' - Email enviado al cliente' : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Estado actualizado a ${_getStatusInfo(newStatus)['label']}'),
+            content: Text('Estado actualizado a $statusLabel$emailSent'),
             backgroundColor: Colors.green,
           ),
         );
@@ -549,8 +669,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar el estado'),
+          SnackBar(
+            content: Text('Error al actualizar el estado: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -584,14 +704,41 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           .update(updateData)
           .eq('id', orderId);
 
+      // ── Enviar email de actualización de envío al cliente ──
+      if (markAsShipped && trackingNumber != null && trackingNumber.isNotEmpty) {
+        try {
+          final orderData = await supabase
+              .from('orders')
+              .select('customer_email, customer_name, order_number')
+              .eq('id', orderId)
+              .single();
+
+          final customerEmail = orderData['customer_email'] as String?;
+          if (customerEmail != null) {
+            await FashionStoreApiService.sendShippingUpdate(
+              to: customerEmail,
+              customerName: orderData['customer_name'] as String? ?? 'Cliente',
+              orderId: orderId.toString(),
+              trackingNumber: trackingNumber,
+              trackingUrl: trackingUrl,
+              carrierName: shippingCarrier,
+              orderNumber: orderData['order_number'] as int?,
+            );
+          }
+        } catch (_) {
+          // No bloquear la actualización si falla el email
+        }
+      }
+
       ref.invalidate(adminOrdersProvider(_selectedStatus));
 
       if (mounted) {
+        final emailMsg = markAsShipped ? ' - Email de envío enviado al cliente' : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               markAsShipped
-                  ? 'Pedido marcado como enviado'
+                  ? 'Pedido marcado como enviado$emailMsg'
                   : 'Datos de envío actualizados',
             ),
             backgroundColor: Colors.green,
@@ -608,6 +755,426 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         );
       }
     }
+  }
+
+  /// Diálogo de devolución parcial — permite seleccionar items y cantidades
+  void _showPartialReturnDialog(Map<String, dynamic> order) async {
+    final admin = ref.read(adminSessionProvider);
+    final supabase = ref.read(supabaseProvider);
+    final orderId = order['id'];
+
+    // Obtener items del pedido con devoluciones previas
+    List<Map<String, dynamic>> items;
+    try {
+      final result = await supabase.rpc(
+        'admin_get_order_items',
+        params: {
+          'p_admin_email': admin?.email ?? '',
+          'p_order_id': orderId is int ? orderId : int.parse(orderId.toString()),
+        },
+      );
+      items = (result as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al obtener items: $e'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    if (items.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay items en este pedido'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
+
+    // Map: order_item_id → cantidad a devolver
+    final Map<int, int> returnQuantities = {};
+    final reasonController = TextEditingController();
+    bool isProcessing = false;
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF12121A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          // Calcular total de reembolso
+          double refundTotal = 0;
+          for (final entry in returnQuantities.entries) {
+            final item = items.firstWhere((i) => i['id'] == entry.key);
+            refundTotal += (item['price_at_purchase'] as num).toDouble() * entry.value;
+          }
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.85,
+            minChildSize: 0.5,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (context, scrollController) {
+              return SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(2)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header
+                    Row(
+                      children: [
+                        const Icon(Icons.assignment_return, color: Colors.teal, size: 24),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Devolución parcial — Pedido #${order['order_number'] ?? orderId}',
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Nota envío
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange[300], size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'El coste de envío no se reembolsa en ninguna devolución.',
+                              style: TextStyle(color: Colors.orange, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Items
+                    ...items.map((item) {
+                      final itemId = item['id'] as int;
+                      final qty = item['quantity'] as int;
+                      final alreadyReturned = (item['already_returned'] as num?)?.toInt() ?? 0;
+                      final available = qty - alreadyReturned;
+                      final currentReturn = returnQuantities[itemId] ?? 0;
+                      final price = (item['price_at_purchase'] as num).toDouble();
+                      final colorName = item['color'] as String?;
+                      final size = item['size'] as String? ?? 'N/A';
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: currentReturn > 0
+                              ? Colors.teal.withValues(alpha: 0.08)
+                              : const Color(0xFF0D0D14),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: currentReturn > 0
+                                ? Colors.teal.withValues(alpha: 0.3)
+                                : Colors.white.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                // Image
+                                Container(
+                                  width: 44, height: 44,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: item['product_image'] != null
+                                      ? Image.network(item['product_image'], fit: BoxFit.cover)
+                                      : const Icon(Icons.image, color: Colors.grey, size: 24),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['product_name'] ?? 'Producto',
+                                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        'Talla: $size${colorName != null ? ' · $colorName' : ''} · €${price.toStringAsFixed(2)}/ud',
+                                        style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                      ),
+                                      if (alreadyReturned > 0)
+                                        Text(
+                                          'Ya devuelto: $alreadyReturned de $qty',
+                                          style: const TextStyle(color: Colors.orange, fontSize: 11),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (available > 0) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Devolver:',
+                                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  // Decrease
+                                  InkWell(
+                                    onTap: currentReturn > 0
+                                        ? () => setModalState(() {
+                                              if (currentReturn <= 1) {
+                                                returnQuantities.remove(itemId);
+                                              } else {
+                                                returnQuantities[itemId] = currentReturn - 1;
+                                              }
+                                            })
+                                        : null,
+                                    child: Container(
+                                      width: 32, height: 32,
+                                      decoration: BoxDecoration(
+                                        color: currentReturn > 0
+                                            ? Colors.teal.withValues(alpha: 0.15)
+                                            : Colors.grey.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(Icons.remove, size: 18,
+                                        color: currentReturn > 0 ? Colors.teal : Colors.grey[700]),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Text(
+                                      '$currentReturn',
+                                      style: TextStyle(
+                                        color: currentReturn > 0 ? Colors.white : Colors.grey[600],
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  // Increase
+                                  InkWell(
+                                    onTap: currentReturn < available
+                                        ? () => setModalState(() {
+                                              returnQuantities[itemId] = currentReturn + 1;
+                                            })
+                                        : null,
+                                    child: Container(
+                                      width: 32, height: 32,
+                                      decoration: BoxDecoration(
+                                        color: currentReturn < available
+                                            ? Colors.teal.withValues(alpha: 0.15)
+                                            : Colors.grey.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Icon(Icons.add, size: 18,
+                                        color: currentReturn < available ? Colors.teal : Colors.grey[700]),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (currentReturn > 0)
+                                    Text(
+                                      '€${(price * currentReturn).toStringAsFixed(2)}',
+                                      style: const TextStyle(color: Colors.teal, fontSize: 14, fontWeight: FontWeight.w600),
+                                    ),
+                                ],
+                              ),
+                            ] else
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Todas las unidades ya devueltas',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 12, fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                    const SizedBox(height: 16),
+
+                    // Motivo
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 2,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Motivo de devolución (opcional)',
+                        labelStyle: TextStyle(color: Colors.grey[500]),
+                        prefixIcon: const Icon(Icons.comment_outlined, color: Colors.teal),
+                        filled: true,
+                        fillColor: const Color(0xFF0D0D14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Colors.teal),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Resumen de reembolso
+                    if (returnQuantities.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.teal.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Items a devolver:', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                                Text(
+                                  '${returnQuantities.values.fold(0, (a, b) => a + b)} uds',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Reembolso envío:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                const Text('€0.00', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                              ],
+                            ),
+                            const Divider(color: Colors.grey, height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Total a reembolsar:', style: TextStyle(color: Colors.teal, fontSize: 15, fontWeight: FontWeight.w600)),
+                                Text(
+                                  '€${refundTotal.toStringAsFixed(2)}',
+                                  style: const TextStyle(color: Colors.teal, fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 20),
+
+                    // Botón procesar
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: returnQuantities.isEmpty || isProcessing
+                            ? null
+                            : () async {
+                                setModalState(() => isProcessing = true);
+                                try {
+                                  final itemsData = returnQuantities.entries
+                                      .where((e) => e.value > 0)
+                                      .map((e) => {
+                                            'order_item_id': e.key,
+                                            'quantity_to_return': e.value,
+                                          })
+                                      .toList();
+
+                                  final result = await supabase.rpc(
+                                    'admin_process_partial_return',
+                                    params: {
+                                      'p_admin_email': admin?.email ?? '',
+                                      'p_data': {
+                                        'order_id': orderId is int ? orderId : int.parse(orderId.toString()),
+                                        'reason': reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
+                                        'items': itemsData,
+                                      },
+                                    },
+                                  );
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                  }
+                                  ref.invalidate(adminOrdersProvider(_selectedStatus));
+                                  if (mounted) {
+                                    final msg = result?['message'] ?? 'Devolución procesada';
+                                    ScaffoldMessenger.of(this.context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('✅ $msg'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() => isProcessing = false);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isProcessing
+                            ? const SizedBox(
+                                width: 18, height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.check_circle_outline, size: 18),
+                        label: Text(isProcessing ? 'Procesando...' : 'Procesar devolución'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey[800],
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   void _showOrderDetails(Map<String, dynamic> order) {
@@ -757,7 +1324,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: (statusInfo['color'] as Color).withOpacity(0.1),
+                      color: (statusInfo['color'] as Color).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -841,20 +1408,41 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     final steps = ['pending', 'paid', 'shipped', 'delivered'];
     final currentIndex = steps.indexOf(status);
     final isCancelled = status == 'cancelled';
+    final isReturnRelated = status == 'return_requested' || status == 'returned' || status == 'partial_return';
 
     if (isCancelled) {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
+          color: Colors.red.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
         ),
         child: const Row(
           children: [
             Icon(Icons.cancel, color: Colors.red, size: 20),
             SizedBox(width: 8),
             Text('Pedido cancelado', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
+    }
+
+    if (isReturnRelated) {
+      final statusInfo = widget.getStatusInfo(status);
+      final color = statusInfo['color'] as Color;
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(statusInfo['icon'] as IconData, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(statusInfo['label'] as String, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -917,13 +1505,16 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
   /// Sección para cambiar el estado del pedido
   Widget _buildStatusSection(String currentStatus) {
-    final statuses = ['pending', 'paid', 'shipped', 'delivered', 'cancelled'];
+    final statuses = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returned', 'partial_return'];
     final labels = {
       'pending': 'Pendiente',
       'paid': 'Pagado',
       'shipped': 'Enviado',
       'delivered': 'Entregado',
       'cancelled': 'Cancelado',
+      'return_requested': 'Devolución solicitada',
+      'returned': 'Devuelto',
+      'partial_return': 'Devolución parcial',
     };
 
     return Container(
@@ -931,7 +1522,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -947,11 +1538,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               fillColor: const Color(0xFF12121A),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
@@ -989,7 +1580,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D14),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1091,9 +1682,9 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
+                color: Colors.blue.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -1201,11 +1792,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       fillColor: const Color(0xFF12121A),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -1220,7 +1811,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -1265,6 +1856,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
   }
 
   Widget _buildProductItem(dynamic item) {
+    final colorName = item['color'] as String?;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -1288,7 +1880,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 Text(
-                  'Talla: ${item['size'] ?? 'N/A'} · Cantidad: ${item['quantity'] ?? 1}',
+                  'Talla: ${item['size'] ?? 'N/A'}${colorName != null && colorName.isNotEmpty ? ' · $colorName' : ''} · Cantidad: ${item['quantity'] ?? 1}',
                   style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
               ],

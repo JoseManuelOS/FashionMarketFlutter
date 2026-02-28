@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -79,154 +81,49 @@ final adminAuthProvider =
 );
 
 /// Provider para estadísticas del dashboard - Usa RPC para bypassear RLS
+/// La función admin_get_dashboard_stats ahora devuelve TODOS los campos necesarios
 final adminDashboardStatsProvider =
     FutureProvider<Map<String, dynamic>>((ref) async {
   final supabase = Supabase.instance.client;
   final admin = ref.read(adminSessionProvider);
 
+  if (admin == null) {
+    throw Exception('No hay sesión de admin activa');
+  }
+
   try {
-    // Intentar usar la función RPC (bypassea RLS)
-    if (admin != null) {
-      try {
-        print('🔄 Obteniendo stats con RPC para admin: ${admin.email}');
-        final response = await supabase.rpc(
-          'admin_get_dashboard_stats',
-          params: {'p_admin_email': admin.email},
-        );
+    final response = await supabase.rpc(
+      'admin_get_dashboard_stats',
+      params: {'p_admin_email': admin.email},
+    );
 
-        print('📦 Respuesta RPC stats: $response');
-
-        if (response != null) {
-          final data = response as Map<String, dynamic>;
-          
-          // Obtener conteo real de productos (usando RPC que bypasea RLS)
-          try {
-            final productsResponse = await supabase.rpc(
-              'admin_get_products',
-              params: {'p_admin_email': admin.email},
-            );
-            
-            if (productsResponse != null) {
-              final products = productsResponse as List;
-              final activeProducts = products.where((p) => p['active'] == true).toList();
-              final totalStock = products.fold<int>(0, (sum, p) => sum + ((p['stock'] as int?) ?? 0));
-              final lowStockProducts = products.where((p) => (p['stock'] as int? ?? 0) <= 5 && (p['stock'] as int? ?? 0) > 0).length;
-              final offerProducts = products.where((p) => p['is_offer'] == true).length;
-
-              return {
-                'totalProducts': products.length, // TODOS los productos
-                'activeProducts': activeProducts.length,
-                'totalStock': totalStock,
-                'lowStockProducts': lowStockProducts,
-                'offerProducts': offerProducts,
-                'pendingOrders': data['pendingOrders'] ?? 0,
-                'monthlySales': (data['monthlySales'] as num?)?.toDouble() ?? 0.0,
-                'totalCustomers': data['totalCustomers'] ?? 0,
-                'topProductName': null,
-                'topProductQty': 0,
-              };
-            }
-          } catch (e) {
-            print('⚠️ Error obteniendo productos para stats: $e');
-          }
-
-          return {
-            'totalProducts': data['totalProducts'] ?? 0,
-            'activeProducts': data['totalProducts'] ?? 0,
-            'totalStock': 0,
-            'lowStockProducts': 0,
-            'offerProducts': 0,
-            'pendingOrders': data['pendingOrders'] ?? 0,
-            'monthlySales': (data['monthlySales'] as num?)?.toDouble() ?? 0.0,
-            'totalCustomers': data['totalCustomers'] ?? 0,
-            'topProductName': null,
-            'topProductQty': 0,
-          };
-        }
-      } catch (rpcError) {
-        print('⚠️ RPC admin_get_dashboard_stats no disponible: $rpcError');
-      }
-    }
-
-    // Fallback: Queries directas (LIMITADAS por RLS - solo productos activos)
-    print('⚠️ Usando fallback - solo se verán productos activos por RLS');
-    final productsResponse = await supabase
-        .from('products')
-        .select('id, stock, is_offer, active');
-
-    final products = productsResponse as List;
-    final totalProducts = products.length;
-    final totalStock =
-        products.fold<int>(0, (sum, p) => sum + ((p['stock'] as int?) ?? 0));
-    final lowStockProducts =
-        products.where((p) => (p['stock'] as int? ?? 0) <= 5 && (p['stock'] as int? ?? 0) > 0).length;
-    final offerProducts = products.where((p) => p['is_offer'] == true).length;
-
-    // Obtener pedidos pendientes (puede tener restricción RLS)
-    int pendingOrders = 0;
-    double monthlySales = 0.0;
-    int totalCustomers = 0;
-    
-    try {
-      final pendingResponse = await supabase
-          .from('orders')
-          .select('id')
-          .eq('status', 'paid');
-      pendingOrders = (pendingResponse as List).length;
-    } catch (e) {
-      print('⚠️ No se pueden obtener pedidos (posible restricción RLS): $e');
-    }
-
-    // Obtener ventas del mes
-    try {
-      final now = DateTime.now();
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-
-      final salesResponse = await supabase
-          .from('orders')
-          .select('total_price')
-          .gte('created_at', firstDayOfMonth.toIso8601String())
-          .inFilter('status', ['paid', 'shipped', 'delivered']);
-
-      monthlySales = (salesResponse as List)
-          .fold<double>(0, (sum, o) => sum + ((o['total_price'] as num?)?.toDouble() ?? 0));
-    } catch (e) {
-      print('⚠️ No se pueden obtener ventas (posible restricción RLS): $e');
-    }
-
-    // Obtener clientes
-    try {
-      final customersResponse = await supabase
-          .from('customers')
-          .select('id');
-      totalCustomers = (customersResponse as List).length;
-    } catch (e) {
-      print('⚠️ No se pueden obtener clientes (posible restricción RLS): $e');
+    if (response != null) {
+      final data = response as Map<String, dynamic>;
+      return {
+        'totalProducts': data['totalProducts'] ?? 0,
+        'totalCustomers': data['totalCustomers'] ?? 0,
+        'pendingOrders': data['pendingOrders'] ?? 0,
+        'monthlySales': (data['monthlySales'] as num?)?.toDouble() ?? 0.0,
+        'lowStockProducts': data['lowStockCount'] ?? 0,
+        'offerProducts': data['offerProducts'] ?? 0,
+        'topProductName': data['topProductName'],
+        'topProductQty': data['topProductQty'] ?? 0,
+      };
     }
 
     return {
-      'totalProducts': totalProducts,
-      'totalStock': totalStock,
-      'lowStockProducts': lowStockProducts,
-      'offerProducts': offerProducts,
-      'pendingOrders': pendingOrders,
-      'monthlySales': monthlySales,
-      'totalCustomers': totalCustomers,
+      'totalProducts': 0,
+      'totalCustomers': 0,
+      'pendingOrders': 0,
+      'monthlySales': 0.0,
+      'lowStockProducts': 0,
+      'offerProducts': 0,
       'topProductName': null,
       'topProductQty': 0,
     };
   } catch (e) {
     print('Error fetching dashboard stats: $e');
-    return {
-      'totalProducts': 0,
-      'totalStock': 0,
-      'lowStockProducts': 0,
-      'offerProducts': 0,
-      'pendingOrders': 0,
-      'monthlySales': 0.0,
-      'topProductName': null,
-      'topProductQty': 0,
-    };
+    rethrow;
   }
 });
 
@@ -237,7 +134,7 @@ final adminRecentProductsProvider =
 
   final response = await supabase
       .from('products')
-      .select('*, images:product_images(image_url, order)')
+      .select('*, images:product_images(image_url, order, color, color_hex)')
       .eq('active', true)
       .order('created_at', ascending: false)
       .limit(5);
@@ -391,7 +288,7 @@ final adminProductsProvider =
   print('🔄 Intentando fallback con query directa...');
   final response = await supabase
       .from('products')
-      .select('*, category:categories(*), images:product_images(image_url, order), variants:product_variants(id, size, stock, sku)')
+      .select('*, category:categories(*), images:product_images(image_url, order, color, color_hex), variants:product_variants(id, size, stock, sku, color)')
       .order('created_at', ascending: false);
 
   print('📦 Respuesta fallback productos: ${(response as List).length} resultados');
@@ -416,43 +313,56 @@ final adminProductVariantsProvider =
 // KPIs & VENTAS - Dashboard Ejecutivo
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Provider para ventas de los últimos 7 días
-final adminSalesLast7DaysProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+/// Provider configurable para ventas de los últimos N días
+final adminSalesProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, int>((ref, days) async {
   final supabase = Supabase.instance.client;
 
   final now = DateTime.now();
-  final sevenDaysAgo = now.subtract(const Duration(days: 7));
+  final startDate = now.subtract(Duration(days: days));
 
   final response = await supabase
       .from('orders')
       .select('created_at, total_price, status')
-      .gte('created_at', sevenDaysAgo.toIso8601String())
+      .gte('created_at', startDate.toIso8601String())
       .inFilter('status', ['paid', 'shipped', 'delivered', 'completed']);
 
   final orders = List<Map<String, dynamic>>.from(response);
 
   // Agrupar por día
   final Map<String, double> dailySales = {};
-  
-  // Inicializar los 7 días
-  for (int i = 6; i >= 0; i--) {
+  final Map<String, int> dailyOrders = {};
+
+  // Inicializar todos los días del período
+  for (int i = days - 1; i >= 0; i--) {
     final date = now.subtract(Duration(days: i));
     final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     dailySales[dateKey] = 0;
+    dailyOrders[dateKey] = 0;
   }
 
-  // Sumar ventas por día
+  // Sumar ventas y pedidos por día
   for (final order in orders) {
     final createdAt = DateTime.parse(order['created_at'] as String);
     final dateKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
     final total = (order['total_price'] as num?)?.toDouble() ?? 0;
     dailySales[dateKey] = (dailySales[dateKey] ?? 0) + total;
+    dailyOrders[dateKey] = (dailyOrders[dateKey] ?? 0) + 1;
   }
 
   return dailySales.entries
-      .map((e) => {'date': e.key, 'total': e.value})
+      .map((e) => {
+            'date': e.key,
+            'total': e.value,
+            'orders': dailyOrders[e.key] ?? 0,
+          })
       .toList();
+});
+
+/// Provider retrocompatible para ventas de los últimos 7 días
+final adminSalesLast7DaysProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  return ref.watch(adminSalesProvider(7).future);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -717,3 +627,193 @@ final adminUsersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
     return [];
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATEGORÍAS - CRUD completo
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Notifier para categorías (admin CRUD)
+class AdminCategoriesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
+  @override
+  Future<List<Map<String, dynamic>>> build() async {
+    return _fetchCategories();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchCategories() async {
+    final supabase = Supabase.instance.client;
+    final admin = ref.read(adminSessionProvider);
+
+    // Intentar RPC (bypasea RLS y trae products_count)
+    if (admin != null) {
+      try {
+        final response = await supabase.rpc(
+          'admin_get_categories',
+          params: {'p_admin_email': admin.email},
+        );
+
+        if (response != null) {
+          return List<Map<String, dynamic>>.from(response as List);
+        }
+      } catch (rpcError) {
+        print('⚠️ RPC admin_get_categories no disponible: $rpcError');
+      }
+    }
+
+    // Fallback: Query directa (categories tiene public read)
+    final response = await supabase
+        .from('categories')
+        .select('*')
+        .order('display_order', ascending: true);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<bool> createCategory({
+    required String name,
+    required String slug,
+    String? description,
+    String? imageUrl,
+    int displayOrder = 0,
+  }) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final admin = ref.read(adminSessionProvider);
+
+      if (admin != null) {
+        try {
+          final data = {
+            'name': name,
+            'slug': slug,
+            'description': description,
+            'image_url': imageUrl,
+            'display_order': displayOrder,
+          };
+
+          await supabase.rpc(
+            'admin_upsert_category',
+            params: {
+              'p_admin_email': admin.email,
+              'p_data': jsonEncode(data),
+            },
+          );
+
+          ref.invalidateSelf();
+          return true;
+        } catch (rpcError) {
+          print('⚠️ RPC admin_upsert_category falló: $rpcError');
+        }
+      }
+
+      // Fallback: inserción directa
+      await supabase.from('categories').insert({
+        'name': name,
+        'slug': slug,
+        'description': description,
+        'image_url': imageUrl,
+        'display_order': displayOrder,
+      });
+
+      ref.invalidateSelf();
+      return true;
+    } catch (e) {
+      print('Error creating category: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateCategory({
+    required String id,
+    required String name,
+    required String slug,
+    String? description,
+    String? imageUrl,
+    int displayOrder = 0,
+  }) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final admin = ref.read(adminSessionProvider);
+
+      if (admin != null) {
+        try {
+          final data = {
+            'id': id,
+            'name': name,
+            'slug': slug,
+            'description': description,
+            'image_url': imageUrl,
+            'display_order': displayOrder,
+          };
+
+          await supabase.rpc(
+            'admin_upsert_category',
+            params: {
+              'p_admin_email': admin.email,
+              'p_data': jsonEncode(data),
+            },
+          );
+
+          ref.invalidateSelf();
+          return true;
+        } catch (rpcError) {
+          print('⚠️ RPC admin_upsert_category falló: $rpcError');
+        }
+      }
+
+      // Fallback: update directo
+      await supabase
+          .from('categories')
+          .update({
+            'name': name,
+            'slug': slug,
+            'description': description,
+            'image_url': imageUrl,
+            'display_order': displayOrder,
+          })
+          .eq('id', id);
+
+      ref.invalidateSelf();
+      return true;
+    } catch (e) {
+      print('Error updating category: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteCategory(String id) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final admin = ref.read(adminSessionProvider);
+
+      if (admin != null) {
+        try {
+          await supabase.rpc(
+            'admin_delete_category',
+            params: {
+              'p_admin_email': admin.email,
+              'p_category_id': id,
+            },
+          );
+
+          ref.invalidateSelf();
+          return true;
+        } catch (rpcError) {
+          print('⚠️ RPC admin_delete_category falló: $rpcError');
+        }
+      }
+
+      // Fallback: delete directo
+      await supabase.from('categories').delete().eq('id', id);
+
+      ref.invalidateSelf();
+      return true;
+    } catch (e) {
+      print('Error deleting category: $e');
+      return false;
+    }
+  }
+}
+
+final adminCategoriesProvider =
+    AsyncNotifierProvider<AdminCategoriesNotifier, List<Map<String, dynamic>>>(
+  AdminCategoriesNotifier.new,
+);

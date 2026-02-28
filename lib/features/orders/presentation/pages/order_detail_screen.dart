@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/theme/app_colors.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/order_model.dart';
 import '../providers/orders_providers.dart';
 
@@ -20,6 +21,7 @@ class OrderDetailScreen extends ConsumerStatefulWidget {
 class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   bool _isCancelling = false;
   bool _isReturning = false;
+  bool _isRequestingInvoice = false;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +143,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
           // ═══════════════════════════════════════════════════════════
           // ACCIONES
           // ═══════════════════════════════════════════════════════════
+          // Solicitar factura (disponible para pedidos pagados, enviados o entregados)
+          if (order.status == OrderStatus.paid ||
+              order.status == OrderStatus.shipped ||
+              order.status == OrderStatus.delivered)
+            _buildRequestInvoiceButton(order),
           if (order.status.canCancel) _buildCancelButton(order),
           if (order.status.canRequestReturn) _buildReturnButton(order),
 
@@ -166,9 +173,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.08),
+          color: AppColors.error.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.error.withOpacity(0.2)),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -184,6 +191,37 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     Text(order.cancellationReason!,
                         style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
                 ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (order.status == OrderStatus.returnRequested ||
+        order.status == OrderStatus.returned ||
+        order.status == OrderStatus.partialReturn) {
+      final isPartial = order.status == OrderStatus.partialReturn;
+      final isRequested = order.status == OrderStatus.returnRequested;
+      final color = isRequested ? Colors.amber : isPartial ? Colors.teal : Colors.deepOrange;
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isRequested ? Icons.assignment_return : isPartial ? Icons.assignment_return_outlined : Icons.assignment_returned,
+              color: color,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                order.status.description,
+                style: TextStyle(color: color, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -215,7 +253,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         height: 36,
                         decoration: BoxDecoration(
                           color: step.completed
-                              ? AppColors.neonCyan.withOpacity(0.15)
+                              ? AppColors.neonCyan.withValues(alpha: 0.15)
                               : AppColors.dark300,
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -251,7 +289,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     width: 16,
                     height: 2,
                     color: step.completed
-                        ? AppColors.neonCyan.withOpacity(0.5)
+                        ? AppColors.neonCyan.withValues(alpha: 0.5)
                         : AppColors.dark100,
                   ),
               ],
@@ -267,9 +305,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.neonCyan.withOpacity(0.06),
+        color: AppColors.neonCyan.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.neonCyan.withOpacity(0.2)),
+        border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -590,6 +628,32 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     );
   }
 
+  Widget _buildRequestInvoiceButton(OrderModel order) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _isRequestingInvoice ? null : () => _requestInvoice(order),
+          icon: _isRequestingInvoice
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.neonCyan),
+                )
+              : const Icon(Icons.receipt_long_outlined),
+          label: Text(_isRequestingInvoice ? 'Enviando factura...' : 'Solicitar factura por email'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.neonCyan,
+            side: const BorderSide(color: AppColors.neonCyan),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── Dialogs ─────────────────────────────────────────────────────────
   void _showCancelDialog(OrderModel order) {
     final controller = TextEditingController();
@@ -693,6 +757,32 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   // ─── API calls ───────────────────────────────────────────────────────
+  Future<void> _requestInvoice(OrderModel order) async {
+    setState(() => _isRequestingInvoice = true);
+    try {
+      final result = await FashionStoreApiService.requestInvoice(
+        orderId: order.id.toString(),
+      );
+      if (mounted) {
+        final success = result['success'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(success
+              ? 'Factura enviada a tu email'
+              : (result['error'] ?? 'No se pudo enviar la factura')),
+          backgroundColor: success ? Colors.green[700] : Colors.red[700],
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red[700]),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRequestingInvoice = false);
+    }
+  }
+
   Future<void> _cancelOrder(OrderModel order, String reason) async {
     setState(() => _isCancelling = true);
     try {
@@ -768,13 +858,19 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         color = AppColors.success;
       case OrderStatus.cancelled:
         color = AppColors.error;
+      case OrderStatus.returnRequested:
+        color = Colors.amber;
+      case OrderStatus.returned:
+        color = Colors.deepOrange;
+      case OrderStatus.partialReturn:
+        color = Colors.teal;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         status.displayName,

@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/cart_item_model.dart';
 import '../providers/cart_providers.dart';
 
@@ -162,7 +163,7 @@ class CartScreen extends ConsumerWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, -10),
           ),
@@ -178,12 +179,12 @@ class CartScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.success.withOpacity(0.2),
-                      AppColors.neonCyan.withOpacity(0.1),
+                      AppColors.success.withValues(alpha: 0.2),
+                      AppColors.neonCyan.withValues(alpha: 0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.success.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -360,13 +361,64 @@ class CartScreen extends ConsumerWidget {
 }
 
 /// Card de item del carrito
-class _CartItemCard extends ConsumerWidget {
+class _CartItemCard extends ConsumerStatefulWidget {
   final CartItemModel item;
 
   const _CartItemCard({required this.item});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CartItemCard> createState() => _CartItemCardState();
+}
+
+class _CartItemCardState extends ConsumerState<_CartItemCard> {
+  bool _isCheckingStock = false;
+
+  /// Valida stock en tiempo real antes de incrementar cantidad
+  Future<void> _handleIncrement() async {
+    final item = widget.item;
+    setState(() => _isCheckingStock = true);
+    try {
+      final result = await FashionStoreApiService.getStockBySize(
+        productId: item.productId,
+      );
+      final stockBySize = result['stockBySize'] as Map?;
+      final available = stockBySize != null
+          ? (stockBySize[item.size] as num?)?.toInt() ?? 0
+          : (result['totalStock'] as num?)?.toInt() ?? 0;
+
+      if (item.quantity + 1 > available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Solo hay $available unidades de talla ${item.size} disponibles',
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      ref
+          .read(cartNotifierProvider.notifier)
+          .incrementQuantity(item.productId, item.size);
+    } catch (_) {
+      // Si falla la consulta de stock, incrementar sin validación
+      ref
+          .read(cartNotifierProvider.notifier)
+          .incrementQuantity(item.productId, item.size);
+    } finally {
+      if (mounted) setState(() => _isCheckingStock = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     return Dismissible(
       key: Key('${item.productId}_${item.size}'),
       direction: DismissDirection.endToStart,
@@ -534,11 +586,9 @@ class _CartItemCard extends ConsumerWidget {
                             ),
                             _QuantityButton(
                               icon: Icons.add,
-                              onPressed: () {
-                                ref
-                                    .read(cartNotifierProvider.notifier)
-                                    .incrementQuantity(item.productId, item.size);
-                              },
+                              onPressed: _isCheckingStock
+                                  ? () {}
+                                  : _handleIncrement,
                             ),
                           ],
                         ),

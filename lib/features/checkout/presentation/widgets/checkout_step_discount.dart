@@ -221,10 +221,10 @@ class _CheckoutStepDiscountState extends ConsumerState<CheckoutStepDiscount> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.1),
+                            color: AppColors.success.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: AppColors.success.withOpacity(0.3),
+                              color: AppColors.success.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Row(
@@ -251,7 +251,7 @@ class _CheckoutStepDiscountState extends ConsumerState<CheckoutStepDiscount> {
                                           ? '${checkoutData.discountValue}% de descuento'
                                           : '€${checkoutData.discountAmount.toStringAsFixed(2)} de descuento',
                                       style: TextStyle(
-                                        color: AppColors.success.withOpacity(0.8),
+                                        color: AppColors.success.withValues(alpha: 0.8),
                                         fontSize: 13,
                                       ),
                                     ),

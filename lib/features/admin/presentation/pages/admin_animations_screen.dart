@@ -55,7 +55,7 @@ class _AdminAnimationsScreenState extends ConsumerState<AdminAnimationsScreen> {
 
     if (admin == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.go(AppRoutes.adminLogin);
+        context.go(AppRoutes.home);
       });
       return const SizedBox.shrink();
     }
