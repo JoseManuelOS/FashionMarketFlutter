@@ -1,9 +1,18 @@
-# Miscellaneous
+# ═══════════════════════════════════════════════════════════════════════════════
+# FashionMarket Flutter — .gitignore
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Miscellaneous ─────────────────────────────────────────────────────────────
 *.class
 *.log
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+.directory
 .atom/
 .build/
 .buildlog/
@@ -12,34 +21,83 @@
 .swiftpm/
 migrate_working_dir/
 
-# IntelliJ related
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+# IntelliJ / Android Studio
 *.iml
 *.ipr
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# VS Code (uncomment if you DON'T want to share launch.json / settings.json)
 #.vscode/
+*.code-workspace
 
-# Flutter/Dart/Pub related
+# ── Secrets & Environment Variables (CRITICAL) ───────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ── Flutter / Dart / Pub ─────────────────────────────────────────────────────
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
 /build/
 
-# Symbolication related
+# ── Build Artifacts (all platforms) ──────────────────────────────────────────
+**/build/
+*.apk
+*.aab
+*.ipa
+*.dSYM/
+*.dSYM.zip
+
+# ── Symbolication ────────────────────────────────────────────────────────────
 app.*.symbols
 
-# Obfuscation related
+# ── Obfuscation ──────────────────────────────────────────────────────────────
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# ── Android ──────────────────────────────────────────────────────────────────
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
+
+# ── iOS / macOS — CocoaPods ──────────────────────────────────────────────────
+**/ios/Pods/
+**/macos/Pods/
+**/ios/.symlinks/
+**/macos/.symlinks/
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/flutter_export_environment.sh
+**/macos/Flutter/ephemeral/
+
+# ── Coverage & Tests ─────────────────────────────────────────────────────────
+coverage/
+lcov.info
+**/test-results/
+.test_coverage/
+
+# ── Supabase Local Dev ───────────────────────────────────────────────────────
+supabase/.temp/
+supabase/.branches/
+.supabase/
+supabase/functions/.env
+supabase/functions/*/node_modules/
+
+# ── Agent / Copilot Skills (local tooling) ───────────────────────────────────
+.agents/
+skills-lock.json
+
+# ── Hive (runtime database files) ────────────────────────────────────────────
+*.hive
+*.lock
