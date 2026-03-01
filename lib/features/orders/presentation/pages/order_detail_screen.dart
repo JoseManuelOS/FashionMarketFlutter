@@ -199,10 +199,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
     if (order.status == OrderStatus.returnRequested ||
         order.status == OrderStatus.returned ||
-        order.status == OrderStatus.partialReturn) {
+        order.status == OrderStatus.partialReturn ||
+        order.status == OrderStatus.returnRejected) {
       final isPartial = order.status == OrderStatus.partialReturn;
       final isRequested = order.status == OrderStatus.returnRequested;
-      final color = isRequested ? Colors.amber : isPartial ? Colors.teal : Colors.deepOrange;
+      final isRejected = order.status == OrderStatus.returnRejected;
+      final color = isRejected ? Colors.red : isRequested ? Colors.amber : isPartial ? Colors.teal : Colors.deepOrange;
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -213,7 +215,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         child: Row(
           children: [
             Icon(
-              isRequested ? Icons.assignment_return : isPartial ? Icons.assignment_return_outlined : Icons.assignment_returned,
+              isRejected ? Icons.block : isRequested ? Icons.assignment_return : isPartial ? Icons.assignment_return_outlined : Icons.assignment_returned,
               color: color,
             ),
             const SizedBox(width: 12),
@@ -706,51 +708,261 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   void _showReturnDialog(OrderModel order) {
-    final controller = TextEditingController();
+    final reasonCtrl = TextEditingController();
+    // Estado de seleccion de items: {itemId: {selected, qty}}
+    final selectedItems = <String, bool>{};
+    final selectedQty = <String, int>{};
+    for (final item in order.items) {
+      selectedItems[item.id] = true;
+      selectedQty[item.id] = item.quantity;
+    }
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.dark400,
-        title: const Text('Solicitar devolución', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Indica el motivo de la devolución.',
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              style: const TextStyle(color: Colors.white),
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Motivo de la devolución...',
-                hintStyle: const TextStyle(color: AppColors.textSubtle),
-                filled: true,
-                fillColor: AppColors.dark300,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final anySelected = selectedItems.values.any((v) => v);
+          return AlertDialog(
+            backgroundColor: AppColors.dark400,
+            title: const Text('Solicitar devolucion',
+                style: TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Selecciona los articulos que deseas devolver:',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    // ── Lista de items con checkbox ──
+                    ...order.items.map((item) {
+                      final isSelected = selectedItems[item.id] ?? false;
+                      final qty = selectedQty[item.id] ?? item.quantity;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppColors.warning.withValues(alpha: 0.08)
+                              : AppColors.dark300,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? AppColors.warning.withValues(alpha: 0.3)
+                                : AppColors.dark100,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            // Checkbox
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: Checkbox(
+                                value: isSelected,
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    selectedItems[item.id] = val ?? false;
+                                  });
+                                },
+                                activeColor: AppColors.warning,
+                                checkColor: Colors.black,
+                                side: const BorderSide(color: AppColors.textMuted),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Thumbnail
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: item.productImage != null
+                                  ? Image.network(
+                                      item.productImage!,
+                                      width: 40,
+                                      height: 40,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          _returnItemPlaceholder(),
+                                    )
+                                  : _returnItemPlaceholder(),
+                            ),
+                            const SizedBox(width: 10),
+                            // Info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.productName,
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.textSubtle,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Talla: ${item.size}  ·  ${item.formattedPrice}',
+                                    style: TextStyle(
+                                      color: isSelected
+                                          ? AppColors.textMuted
+                                          : AppColors.textSubtle,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Selector de cantidad (solo si qty > 1)
+                            if (item.quantity > 1 && isSelected) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: AppColors.dark300,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _qtyButton(
+                                      icon: Icons.remove,
+                                      onTap: qty > 1
+                                          ? () => setDialogState(() =>
+                                              selectedQty[item.id] = qty - 1)
+                                          : null,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6),
+                                      child: Text(
+                                        '$qty',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    _qtyButton(
+                                      icon: Icons.add,
+                                      onTap: qty < item.quantity
+                                          ? () => setDialogState(() =>
+                                              selectedQty[item.id] = qty + 1)
+                                          : null,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else if (item.quantity > 1 && !isSelected) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                'x${item.quantity}',
+                                style: const TextStyle(
+                                  color: AppColors.textSubtle,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 16),
+                    // ── Motivo ──
+                    const Text(
+                      'Motivo de la devolucion:',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: reasonCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Describe el motivo...',
+                        hintStyle:
+                            const TextStyle(color: AppColors.textSubtle),
+                        filled: true,
+                        fillColor: AppColors.dark300,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar',
+                    style: TextStyle(color: AppColors.textMuted)),
+              ),
+              ElevatedButton(
+                onPressed: anySelected
+                    ? () {
+                        Navigator.pop(ctx);
+                        // Construir razon con items seleccionados
+                        final itemsText = order.items
+                            .where((it) => selectedItems[it.id] == true)
+                            .map((it) {
+                          final q = selectedQty[it.id] ?? it.quantity;
+                          final qText = it.quantity > 1
+                              ? ' ($q de ${it.quantity} uds)'
+                              : '';
+                          return '- ${it.productName} (Talla ${it.size})$qText';
+                        }).join('\n');
+                        final userReason = reasonCtrl.text.trim();
+                        final fullReason =
+                            '[Articulos solicitados]\n$itemsText\n\n'
+                            '[Motivo]\n${userReason.isEmpty ? 'Devolucion solicitada por el cliente' : userReason}';
+                        _requestReturn(order, fullReason);
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.warning,
+                  disabledBackgroundColor: AppColors.dark300,
+                ),
+                child: const Text('Solicitar',
+                    style: TextStyle(color: Colors.black)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _returnItemPlaceholder() {
+    return Container(
+      width: 40,
+      height: 40,
+      color: AppColors.dark300,
+      child: const Icon(Icons.image_outlined,
+          color: AppColors.textSubtle, size: 18),
+    );
+  }
+
+  Widget _qtyButton({required IconData icon, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(
+          icon,
+          size: 16,
+          color: onTap != null ? AppColors.warning : AppColors.textSubtle,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar', style: TextStyle(color: AppColors.textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _requestReturn(order, controller.text);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning),
-            child: const Text('Solicitar', style: TextStyle(color: Colors.black)),
-          ),
-        ],
       ),
     );
   }
@@ -864,6 +1076,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         color = Colors.deepOrange;
       case OrderStatus.partialReturn:
         color = Colors.teal;
+      case OrderStatus.returnRejected:
+        color = Colors.red;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

@@ -92,7 +92,7 @@ final offersEnabledProvider = StreamProvider<bool>((ref) {
     } catch (e) {
       // Si app_config no existe (404) o cualquier error,
       // asumimos que las ofertas están habilitadas por defecto.
-      debugPrint('ℹ️ app_config no disponible (${e.runtimeType}), ofertas habilitadas por defecto');
+      debugPrint('app_config no disponible (${e.runtimeType}), ofertas habilitadas por defecto');
       if (!controller.isClosed) {
         controller.add(true);
       }

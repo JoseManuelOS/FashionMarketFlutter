@@ -11,7 +11,8 @@ enum OrderStatus {
   cancelled,
   returnRequested,
   returned,
-  partialReturn;
+  partialReturn,
+  returnRejected;
 
   static OrderStatus fromString(String? value) {
     switch (value) {
@@ -31,6 +32,8 @@ enum OrderStatus {
         return OrderStatus.returned;
       case 'partial_return':
         return OrderStatus.partialReturn;
+      case 'return_rejected':
+        return OrderStatus.returnRejected;
       default:
         return OrderStatus.pending;
     }
@@ -54,6 +57,8 @@ enum OrderStatus {
         return 'Devuelto';
       case OrderStatus.partialReturn:
         return 'Devolución parcial';
+      case OrderStatus.returnRejected:
+        return 'Devolución rechazada';
     }
   }
 
@@ -75,6 +80,8 @@ enum OrderStatus {
         return 'Pedido devuelto y reembolsado';
       case OrderStatus.partialReturn:
         return 'Devolución parcial procesada';
+      case OrderStatus.returnRejected:
+        return 'La solicitud de devolución fue rechazada';
     }
   }
 

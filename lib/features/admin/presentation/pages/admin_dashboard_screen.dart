@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
@@ -228,7 +229,7 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
             _buildStatCard(
               label: 'Ventas del Mes',
-              value: '€${(stats['monthlySales'] as double).toStringAsFixed(0)}',
+              value: NumberFormat.currency(locale: 'es_ES', symbol: '€').format(stats['monthlySales'] as double),
               color: Colors.green,
               icon: Icons.trending_up,
             ),

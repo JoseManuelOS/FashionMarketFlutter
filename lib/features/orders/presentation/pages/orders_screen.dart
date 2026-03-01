@@ -178,6 +178,8 @@ class OrdersScreen extends ConsumerWidget {
         return Colors.deepOrange;
       case OrderStatus.partialReturn:
         return Colors.teal;
+      case OrderStatus.returnRejected:
+        return Colors.red[300]!;
     }
   }
 }
@@ -422,6 +424,8 @@ class _StatusBadge extends StatelessWidget {
         return Colors.deepOrange;
       case OrderStatus.partialReturn:
         return Colors.teal;
+      case OrderStatus.returnRejected:
+        return Colors.red[300]!;
     }
   }
 
@@ -443,6 +447,8 @@ class _StatusBadge extends StatelessWidget {
         return Icons.assignment_returned;
       case OrderStatus.partialReturn:
         return Icons.assignment_return_outlined;
+      case OrderStatus.returnRejected:
+        return Icons.do_not_disturb_alt_outlined;
     }
   }
 

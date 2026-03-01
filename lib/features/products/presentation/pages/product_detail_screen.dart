@@ -21,10 +21,12 @@ import '../../../cart/presentation/widgets/cart_slide_over.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final ProductModel product;
+  final String? heroTag;
 
   const ProductDetailScreen({
     super.key,
     required this.product,
+    this.heroTag,
   });
 
   @override
@@ -58,19 +60,30 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   /// Obtiene el stock real por talla desde la API de FashionStore
   Future<void> _fetchLiveStock() async {
     try {
-      final result = await FashionStoreApiService.getStockBySize(
+      var result = await FashionStoreApiService.getStockBySize(
         productId: widget.product.id,
         color: _selectedColor,
       );
-      if (mounted) {
-        final stockBySize = result['stockBySize'];
-        if (stockBySize != null && stockBySize is Map) {
-          setState(() {
-            _liveStockBySize = Map<String, int>.from(
-              stockBySize.map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
-            );
-          });
-        }
+      var stockBySize = result['stockBySize'];
+
+      // Si el filtro por color no devolvió variantes, reintentar sin color.
+      // Esto ocurre cuando product_variants.color está vacío ('') pero
+      // la app usa nombres de color de product_images (ej. "Rojo").
+      if (_selectedColor != null &&
+          (stockBySize == null ||
+              (stockBySize is Map && stockBySize.isEmpty))) {
+        result = await FashionStoreApiService.getStockBySize(
+          productId: widget.product.id,
+        );
+        stockBySize = result['stockBySize'];
+      }
+
+      if (mounted && stockBySize != null && stockBySize is Map && stockBySize.isNotEmpty) {
+        setState(() {
+          _liveStockBySize = Map<String, int>.from(
+            stockBySize.map((k, v) => MapEntry(k.toString(), (v as num).toInt())),
+          );
+        });
       }
     } catch (_) {
       // Silently fall back to initial stockBySize from model
@@ -85,7 +98,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   int get _currentSizeStock {
     if (_selectedSize == null) return widget.product.stock;
-    return _effectiveStockBySize[_selectedSize] ?? widget.product.stock;
+    final sizeStock = _effectiveStockBySize[_selectedSize];
+    if (sizeStock != null) return sizeStock;
+    // Fallback: stock por talla (agregado entre colores), NO el stock total
+    return widget.product.stockBySize?[_selectedSize] ?? 0;
   }
 
   bool get _isOutOfStock => _currentSizeStock <= 0;
@@ -454,7 +470,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               images: widget.product.imagesForColor(_selectedColor),
               isOffer: widget.product.isOffer,
               discountPercentage: widget.product.discountPercentage,
-              heroTag: 'product-hero-${widget.product.slug}',
+              heroTag: widget.heroTag ?? 'product-hero-${widget.product.slug}',
             ),
             
             // Gradient overlay inferior

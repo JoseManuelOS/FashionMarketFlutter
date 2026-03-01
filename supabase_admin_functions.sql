@@ -156,11 +156,18 @@ BEGIN
   FROM orders
   WHERE status = 'paid';
 
-  -- Ventas del mes (paid, shipped, delivered)
-  SELECT COALESCE(SUM(total_price), 0) INTO v_monthly_sales
-  FROM orders
-  WHERE status IN ('paid', 'shipped', 'delivered')
-  AND created_at >= v_month_start;
+  -- Ventas del mes (paid, shipped, delivered, partial_return)
+  -- partial_return: importe neto = total_price + SUM(facturas rectificativas FR-)
+  -- Las FR- tienen importes negativos, así el resultado es el importe neto real
+  SELECT COALESCE(SUM(
+    o.total_price + COALESCE(
+      (SELECT SUM(f.total) FROM facturacion f WHERE f.order_id = o.id AND f.invoice_number LIKE 'FR-%'),
+      0
+    )
+  ), 0) INTO v_monthly_sales
+  FROM orders o
+  WHERE o.status IN ('paid', 'shipped', 'delivered', 'partial_return')
+  AND o.created_at >= v_month_start;
 
   -- Stock bajo: variantes con stock <= 5 (igual que FashionStore)
   SELECT COUNT(DISTINCT product_id) INTO v_low_stock_count
@@ -179,7 +186,7 @@ BEGIN
   INTO v_top_product_name, v_top_product_qty
   FROM order_items oi
   JOIN orders o ON o.id = oi.order_id
-  WHERE o.status IN ('paid', 'shipped', 'delivered')
+  WHERE o.status IN ('paid', 'shipped', 'delivered', 'partial_return')
   AND o.created_at >= v_month_start
   GROUP BY oi.product_name
   ORDER BY SUM(oi.quantity) DESC
@@ -367,12 +374,17 @@ BEGIN
   ) AS day
   LEFT JOIN (
     SELECT 
-      date_trunc('day', created_at)::date as sale_date,
-      SUM(total_price) as total
-    FROM orders
-    WHERE status IN ('paid', 'shipped', 'delivered')
-    AND created_at >= current_date - interval '6 days'
-    GROUP BY date_trunc('day', created_at)::date
+      date_trunc('day', o.created_at)::date as sale_date,
+      SUM(
+        o.total_price + COALESCE(
+          (SELECT SUM(f.total) FROM facturacion f WHERE f.order_id = o.id AND f.invoice_number LIKE 'FR-%'),
+          0
+        )
+      ) as total
+    FROM orders o
+    WHERE o.status IN ('paid', 'shipped', 'delivered', 'partial_return')
+    AND o.created_at >= current_date - interval '6 days'
+    GROUP BY date_trunc('day', o.created_at)::date
   ) daily_sales ON day::date = daily_sales.sale_date;
 
   RETURN COALESCE(v_result, '[]'::json);
@@ -428,13 +440,18 @@ BEGIN
   ) AS day
   LEFT JOIN (
     SELECT 
-      date_trunc('day', created_at)::date as sale_date,
-      SUM(total_price) as total,
+      date_trunc('day', o.created_at)::date as sale_date,
+      SUM(
+        o.total_price + COALESCE(
+          (SELECT SUM(f.total) FROM facturacion f WHERE f.order_id = o.id AND f.invoice_number LIKE 'FR-%'),
+          0
+        )
+      ) as total,
       COUNT(*) as order_count
-    FROM orders
-    WHERE status IN ('paid', 'shipped', 'delivered')
-    AND created_at >= current_date - v_interval
-    GROUP BY date_trunc('day', created_at)::date
+    FROM orders o
+    WHERE o.status IN ('paid', 'shipped', 'delivered', 'partial_return')
+    AND o.created_at >= current_date - v_interval
+    GROUP BY date_trunc('day', o.created_at)::date
   ) daily_sales ON day::date = daily_sales.sale_date;
 
   RETURN COALESCE(v_result, '[]'::json);
@@ -799,6 +816,15 @@ BEGIN
     SELECT 
       f.id,
       f.order_id,
+      f.invoice_number,
+      f.customer_name,
+      f.customer_email,
+      f.items,
+      f.subtotal,
+      f.iva_amount,
+      f.shipping_cost,
+      f.total,
+      f.pdf_url,
       f.created_at,
       json_build_object(
         'customer_email', o.customer_email,
@@ -837,7 +863,7 @@ CREATE INDEX IF NOT EXISTS idx_order_item_returns_order ON order_item_returns(or
 CREATE INDEX IF NOT EXISTS idx_order_item_returns_item ON order_item_returns(order_item_id);
 
 -- RLS deshabilitado (acceso vía SECURITY DEFINER RPCs)
-ALTER TABLE order_item_returns ENABLE ROW LEVEL SECflutter run URITY;
+ALTER TABLE order_item_returns ENABLE ROW LEVEL SECURITY;
 
 
 -- =============================================

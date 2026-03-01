@@ -451,14 +451,16 @@ class CheckoutStepSummary extends ConsumerWidget {
       barrierDismissible: false,
       builder: (dialogContext) => _PaymentPendingDialog(
         sessionId: sessionId,
-        onPaymentVerified: (orderId, orderNumber) {
+        onPaymentVerified: (orderId, orderNumber) async {
           Navigator.of(dialogContext).pop();
           // Limpiar carrito y checkout
-          ref.read(cartNotifierProvider.notifier).clearCart();
+          await ref.read(cartNotifierProvider.notifier).clearCart();
           ref.read(checkoutDataProvider.notifier).reset();
           ref.read(checkoutStepProvider.notifier).state = 0;
           // Navegar a pantalla de éxito
-          context.go(AppRoutes.checkoutSuccessWithOrder(orderId, orderNumber: orderNumber));
+          if (context.mounted) {
+            context.go(AppRoutes.checkoutSuccessWithOrder(orderId, orderNumber: orderNumber));
+          }
         },
         onCancel: () {
           Navigator.of(dialogContext).pop();

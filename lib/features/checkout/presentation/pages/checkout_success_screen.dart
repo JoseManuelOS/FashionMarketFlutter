@@ -87,8 +87,8 @@ class _CheckoutSuccessScreenState extends ConsumerState<CheckoutSuccessScreen> {
     }
   }
 
-  void _clearCheckoutState() {
-    ref.read(cartNotifierProvider.notifier).clearCart();
+  void _clearCheckoutState() async {
+    await ref.read(cartNotifierProvider.notifier).clearCart();
     ref.read(checkoutDataProvider.notifier).reset();
     ref.read(checkoutStepProvider.notifier).state = 0;
   }

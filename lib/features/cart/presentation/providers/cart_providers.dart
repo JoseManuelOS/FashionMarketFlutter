@@ -123,14 +123,19 @@ class CartNotifier extends _$CartNotifier {
     updateQuantity(productId, size, item.quantity - 1, color);
   }
 
-  /// Vaciar carrito
-  void clear() {
+  /// Vaciar carrito — await-safe: ensures Hive box is open before clearing
+  Future<void> clear() async {
     state = [];
-    _saveToStorage();
+    try {
+      _box ??= await ref.read(cartBoxProvider.future);
+      await _box!.clear();
+    } catch (_) {
+      // At minimum, memory state is cleared
+    }
   }
 
   /// Alias para vaciar carrito
-  void clearCart() => clear();
+  Future<void> clearCart() => clear();
 
   /// Verificar si un producto está en el carrito
   bool containsProduct(String productId, [String? size]) {

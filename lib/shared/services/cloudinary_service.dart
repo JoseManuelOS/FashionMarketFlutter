@@ -47,12 +47,12 @@ class CloudinaryService {
         format: CompressFormat.jpeg,
       );
       debugPrint(
-        '🗜️ Imagen comprimida: ${originalBytes.length} → ${compressed.length} bytes '
+        'Imagen comprimida: ${originalBytes.length} → ${compressed.length} bytes '
         '(${(compressed.length / originalBytes.length * 100).toStringAsFixed(0)}%)',
       );
       return compressed;
     } catch (e) {
-      debugPrint('⚠️ Compresión falló, usando imagen original: $e');
+      debugPrint('Compresión falló, usando imagen original: $e');
       return originalBytes;
     }
   }
@@ -101,16 +101,16 @@ class CloudinaryService {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         final secureUrl = json['secure_url'] as String?;
-        debugPrint('✅ Imagen subida a Cloudinary: $secureUrl');
+        debugPrint('Imagen subida a Cloudinary: $secureUrl');
         return secureUrl;
       } else {
         debugPrint(
-          '❌ Error subiendo imagen: ${response.statusCode} - ${response.body}',
+          'Error subiendo imagen: ${response.statusCode} - ${response.body}',
         );
         return null;
       }
     } catch (e) {
-      debugPrint('❌ Exception subiendo imagen a Cloudinary: $e');
+      debugPrint('Exception subiendo imagen a Cloudinary: $e');
       return null;
     }
   }

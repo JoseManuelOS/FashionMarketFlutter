@@ -188,9 +188,11 @@ class AuthNotifier extends _$AuthNotifier {
 
     try {
       await _supabase.auth.signOut();
-      state = const AsyncData(null);
+      // After signOut, onAuthStateChange fires and may rebuild/dispose this
+      // notifier. Guard state assignment to avoid "Future already completed".
     } catch (e) {
-      state = AsyncError(e, StackTrace.current);
+      // Ignore StateError from already-disposed notifier
+      if (e is StateError) return;
       rethrow;
     }
   }

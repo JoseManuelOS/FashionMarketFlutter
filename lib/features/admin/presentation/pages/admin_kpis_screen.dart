@@ -205,7 +205,7 @@ class AdminKpisScreen extends ConsumerWidget {
           icon: Icons.assignment_outlined,
           label: 'Pedidos Pendientes',
           value: '$pendingOrders',
-          subtitle: pendingOrders == 0 ? '✓ ¡Todo al día!' : '⚡ Requieren atención',
+          subtitle: pendingOrders == 0 ? 'Todo al dia' : 'Requieren atencion',
           color: AppColors.neonFuchsia,
         ),
 
@@ -215,7 +215,7 @@ class AdminKpisScreen extends ConsumerWidget {
           label: 'Más Vendido',
           value: topProduct?['name'] ?? 'Sin datos',
           subtitle: topProduct != null 
-              ? '🔥 ${topProduct['quantity']} unidades vendidas'
+              ? '${topProduct['quantity']} unidades vendidas'
               : 'No hay ventas registradas',
           color: AppColors.neonPurple,
           isSmallValue: true,
@@ -227,8 +227,8 @@ class AdminKpisScreen extends ConsumerWidget {
           label: 'Stock Bajo',
           value: '$lowStockCount',
           subtitle: lowStockCount > 0 
-              ? '⚠️ Necesitan reposición'
-              : '✓ Inventario saludable',
+              ? 'Necesitan reposicion'
+              : 'Inventario saludable',
           color: Colors.amber,
         ),
       ],
@@ -371,7 +371,7 @@ class AdminKpisScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '📊 Resumen Rápido',
+            'Resumen Rapido',
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -384,12 +384,12 @@ class AdminKpisScreen extends ConsumerWidget {
           _buildStatItem('Total productos', '$totalProducts'),
           _buildStatItem(
             'Stock bajo (≤5)',
-            lowStockCount > 0 ? '$lowStockCount productos' : '✓ OK',
+            lowStockCount > 0 ? '$lowStockCount productos' : 'OK',
             isWarning: lowStockCount > 0,
           ),
           _buildStatItem(
             'Pedidos pendientes',
-            pendingOrders > 0 ? '$pendingOrders pedidos' : '✓ Al día',
+            pendingOrders > 0 ? '$pendingOrders pedidos' : 'Al dia',
             isWarning: pendingOrders > 0,
           ),
           

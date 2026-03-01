@@ -155,28 +155,28 @@ class AdminNotificationSummaryCard extends ConsumerWidget {
                 children: [
                   if (s.newOrdersCount > 0)
                     _NotificationBadge(
-                      icon: '🛒',
+                      icon: Icons.shopping_cart_outlined,
                       count: s.newOrdersCount,
                       label: 'Pedidos nuevos',
                       color: AppColors.neonCyan,
                     ),
                   if (s.pendingOrdersCount > 0)
                     _NotificationBadge(
-                      icon: '📦',
+                      icon: Icons.inventory_2_outlined,
                       count: s.pendingOrdersCount,
                       label: 'Por enviar',
                       color: AppColors.neonPurple,
                     ),
                   if (s.lowStockCount > 0)
                     _NotificationBadge(
-                      icon: '⚠️',
+                      icon: Icons.warning_amber_outlined,
                       count: s.lowStockCount,
                       label: 'Stock bajo',
                       color: Colors.amber,
                     ),
                   if (s.outOfStockCount > 0)
                     _NotificationBadge(
-                      icon: '🚫',
+                      icon: Icons.remove_shopping_cart_outlined,
                       count: s.outOfStockCount,
                       label: 'Agotados',
                       color: Colors.red,
@@ -194,7 +194,7 @@ class AdminNotificationSummaryCard extends ConsumerWidget {
 }
 
 class _NotificationBadge extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final int count;
   final String label;
   final Color color;
@@ -220,9 +220,10 @@ class _NotificationBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          Icon(
             icon,
-            style: const TextStyle(fontSize: 14),
+            color: color,
+            size: 16,
           ),
           const SizedBox(width: 6),
           Text(

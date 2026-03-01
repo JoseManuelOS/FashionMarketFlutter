@@ -116,7 +116,8 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🔥 ', style: TextStyle(fontSize: 12)),
+                  const Icon(Icons.local_fire_department, color: Colors.white, size: 14),
+                  const SizedBox(width: 2),
                   Text(
                     widget.discountPercentage != null
                         ? '-${widget.discountPercentage!.toStringAsFixed(0)}%'

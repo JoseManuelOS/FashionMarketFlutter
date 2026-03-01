@@ -125,7 +125,7 @@ final sortedProductListProvider = Provider<AsyncValue<List<ProductModel>>>((ref)
   return productsAsync.whenData((products) {
     var filtered = List<ProductModel>.from(products);
 
-    // 🔍 Búsqueda por texto (name, description, category.name)
+    // Búsqueda por texto (name, description, category.name)
     if (filters.search.isNotEmpty) {
       final query = filters.search.toLowerCase();
       filtered = filtered.where((p) =>
@@ -134,14 +134,14 @@ final sortedProductListProvider = Provider<AsyncValue<List<ProductModel>>>((ref)
           (p.category?.name.toLowerCase().contains(query) ?? false)).toList();
     }
 
-    // 📂 Categoría (por slug)
+    // Categoría (por slug)
     if (filters.categorySlug != null) {
       filtered = filtered
           .where((p) => p.category?.slug == filters.categorySlug)
           .toList();
     }
 
-    // 💰 Rango de precio
+    // Rango de precio
     if (filters.priceMin > 0) {
       filtered = filtered.where((p) => p.price >= filters.priceMin).toList();
     }
@@ -149,21 +149,21 @@ final sortedProductListProvider = Provider<AsyncValue<List<ProductModel>>>((ref)
       filtered = filtered.where((p) => p.price <= filters.priceMax).toList();
     }
 
-    // 👕 Tallas (match si el producto tiene al menos una de las seleccionadas)
+    // Tallas (match si el producto tiene al menos una de las seleccionadas)
     if (filters.sizes.isNotEmpty) {
       filtered = filtered.where((p) =>
           filters.sizes.any((size) => p.sizes.contains(size))).toList();
     }
 
-    // 🏷️ Solo ofertas
+    // Solo ofertas
     if (filters.offersOnly) {
       filtered = filtered.where((p) => p.isOffer).toList();
     }
 
-    // 🎨 Color (si está implementado)
+    // Color (si está implementado)
     // if (filters.color != null) { ... }
 
-    // 📊 Ordenación
+    // Ordenación
     switch (filters.sortBy) {
       case 'price_asc':
         filtered.sort((a, b) => a.price.compareTo(b.price));
@@ -192,7 +192,7 @@ final relatedProductsProvider =
           *,
           category:categories(*),
           images:product_images(*),
-          variants:product_variants(id, size, stock, sku)
+          variants:product_variants(id, size, stock, sku, color)
         ''')
         .eq('active', true)
         .eq('category_id', params.categoryId!)

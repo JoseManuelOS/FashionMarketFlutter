@@ -67,7 +67,7 @@ final offerProductsProvider =
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef OfferProductsRef = AutoDisposeFutureProviderRef<List<ProductModel>>;
-String _$homeCategoriesHash() => r'6dcc5815130c79cd0abd5793d660bf8216982c62';
+String _$homeCategoriesHash() => r'52d78ed6c626dbc26c413a3cb5ae1e514429f853';
 
 /// Provider para obtener categorías activas
 ///

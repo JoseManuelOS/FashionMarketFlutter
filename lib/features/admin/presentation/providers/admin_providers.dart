@@ -30,7 +30,7 @@ class AdminAuthNotifier extends Notifier<AsyncValue<AdminModel?>> {
     try {
       final supabase = Supabase.instance.client;
 
-      print('🔐 Intentando login admin con email: $email');
+      print('Intentando login admin con email: $email');
 
       // Llamar a la función de verificación de credenciales
       final response = await supabase.rpc(
@@ -41,16 +41,16 @@ class AdminAuthNotifier extends Notifier<AsyncValue<AdminModel?>> {
         },
       );
 
-      print('📦 Respuesta RPC: $response');
+      print('Respuesta RPC: $response');
 
       if (response == null || (response as List).isEmpty) {
-        print('❌ Credenciales incorrectas o admin no encontrado');
+        print('Credenciales incorrectas o admin no encontrado');
         state = const AsyncData(null);
         throw Exception('Credenciales de administrador incorrectas');
       }
 
       final adminData = response[0] as Map<String, dynamic>;
-      print('✅ Admin encontrado: $adminData');
+      print('Admin encontrado: $adminData');
       
       final admin = AdminModel.fromJson(adminData);
 
@@ -58,11 +58,11 @@ class AdminAuthNotifier extends Notifier<AsyncValue<AdminModel?>> {
       ref.read(adminSessionProvider.notifier).state = admin;
       
       state = AsyncData(admin);
-      print('🎉 Login exitoso para: ${admin.email}');
+      print('Login exitoso para: ${admin.email}');
       return admin;
     } catch (e, stack) {
-      print('💥 Error en login admin: $e');
-      print('📍 Stack: $stack');
+      print('Error en login admin: $e');
+      print('Stack: $stack');
       state = AsyncError(e, stack);
       rethrow;
     }
@@ -162,7 +162,7 @@ final adminRecentOrdersProvider =
           return orders.take(10).toList();
         }
       } catch (rpcError) {
-        print('⚠️ RPC admin_get_orders no disponible: $rpcError');
+        print('RPC admin_get_orders no disponible: $rpcError');
       }
     }
 
@@ -175,7 +175,7 @@ final adminRecentOrdersProvider =
 
     return List<Map<String, dynamic>>.from(response);
   } catch (e) {
-    print('⚠️ Error obteniendo pedidos recientes: $e');
+    print('Error obteniendo pedidos recientes: $e');
     return [];
   }
 });
@@ -188,7 +188,7 @@ final adminOrdersProvider = FutureProvider.family<List<Map<String, dynamic>>, St
   // Intentar usar la función RPC (bypassea RLS)
   if (admin != null) {
     try {
-      print('🔄 Obteniendo pedidos con RPC para admin: ${admin.email}');
+      print('Obteniendo pedidos con RPC para admin: ${admin.email}');
       final response = await supabase.rpc(
         'admin_get_orders',
         params: {
@@ -197,21 +197,21 @@ final adminOrdersProvider = FutureProvider.family<List<Map<String, dynamic>>, St
         },
       );
 
-      print('📦 Respuesta RPC pedidos: $response');
+      print('Respuesta RPC pedidos: $response');
       
       if (response != null) {
         final orders = List<Map<String, dynamic>>.from(response as List);
-        print('✅ Pedidos obtenidos: ${orders.length}');
+        print('Pedidos obtenidos: ${orders.length}');
         return orders;
       }
     } catch (rpcError) {
-      print('⚠️ RPC admin_get_orders falló: $rpcError');
+      print('RPC admin_get_orders falló: $rpcError');
       // Continuar al fallback
     }
   }
 
   // Fallback: Query directa
-  print('🔄 Intentando fallback con query directa...');
+  print('Intentando fallback con query directa...');
   var query = supabase
       .from('orders')
       .select('*, items:order_items(*)');
@@ -221,7 +221,7 @@ final adminOrdersProvider = FutureProvider.family<List<Map<String, dynamic>>, St
   }
 
   final response = await query.order('created_at', ascending: false);
-  print('📦 Respuesta fallback pedidos: ${(response as List).length} resultados');
+  print('Respuesta fallback pedidos: ${(response as List).length} resultados');
 
   return List<Map<String, dynamic>>.from(response);
 });
@@ -235,13 +235,13 @@ final adminProductsProvider =
   // Intentar usar la función RPC (bypassea RLS)
   if (admin != null) {
     try {
-      print('🔄 Obteniendo productos con RPC para admin: ${admin.email}');
+      print('Obteniendo productos con RPC para admin: ${admin.email}');
       final response = await supabase.rpc(
         'admin_get_products',
         params: {'p_admin_email': admin.email},
       );
 
-      print('📦 Respuesta RPC productos tipo: ${response.runtimeType}');
+      print('Respuesta RPC productos tipo: ${response.runtimeType}');
 
       if (response != null) {
         List<Map<String, dynamic>> products;
@@ -261,37 +261,37 @@ final adminProductsProvider =
             }),
           );
         } else {
-          print('⚠️ Respuesta no es lista, es: ${response.runtimeType}');
+          print('Respuesta no es lista, es: ${response.runtimeType}');
           products = [];
         }
         
         // Debug: verificar si hay variants
         if (products.isNotEmpty) {
           final firstProduct = products.first;
-          print('🔍 Primer producto: ${firstProduct['name']}');
-          print('🔍 Variants del primer producto: ${firstProduct['variants']}');
-          print('🔍 Variants tipo: ${firstProduct['variants'].runtimeType}');
+          print('Primer producto: ${firstProduct['name']}');
+          print('Variants del primer producto: ${firstProduct['variants']}');
+          print('Variants tipo: ${firstProduct['variants'].runtimeType}');
         }
         
-        print('✅ Productos obtenidos: ${products.length}');
+        print('Productos obtenidos: ${products.length}');
         return products;
       }
     } catch (rpcError) {
-      print('⚠️ RPC admin_get_products falló: $rpcError');
+      print('RPC admin_get_products falló: $rpcError');
       // Continuar al fallback
     }
   } else {
-    print('⚠️ No hay sesión de admin activa');
+    print('No hay sesión de admin activa');
   }
 
   // Fallback: Query directa (puede tener restricciones RLS)
-  print('🔄 Intentando fallback con query directa...');
+  print('Intentando fallback con query directa...');
   final response = await supabase
       .from('products')
       .select('*, category:categories(*), images:product_images(image_url, order, color, color_hex), variants:product_variants(id, size, stock, sku, color)')
       .order('created_at', ascending: false);
 
-  print('📦 Respuesta fallback productos: ${(response as List).length} resultados');
+  print('Respuesta fallback productos: ${(response as List).length} resultados');
   return List<Map<String, dynamic>>.from(response);
 });
 
@@ -587,7 +587,7 @@ final adminUsersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
           return List<Map<String, dynamic>>.from(response as List);
         }
       } catch (rpcError) {
-        print('⚠️ RPC admin_get_customers no disponible: $rpcError');
+        print('RPC admin_get_customers no disponible: $rpcError');
       }
     }
 
@@ -623,7 +623,7 @@ final adminUsersProvider = FutureProvider<List<Map<String, dynamic>>>((ref) asyn
 
     return customers;
   } catch (e) {
-    print('⚠️ Error obteniendo clientes: $e');
+    print('Error obteniendo clientes: $e');
     return [];
   }
 });
@@ -655,7 +655,7 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> 
           return List<Map<String, dynamic>>.from(response as List);
         }
       } catch (rpcError) {
-        print('⚠️ RPC admin_get_categories no disponible: $rpcError');
+        print('RPC admin_get_categories no disponible: $rpcError');
       }
     }
 
@@ -700,7 +700,7 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> 
           ref.invalidateSelf();
           return true;
         } catch (rpcError) {
-          print('⚠️ RPC admin_upsert_category falló: $rpcError');
+          print('RPC admin_upsert_category falló: $rpcError');
         }
       }
 
@@ -755,7 +755,7 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> 
           ref.invalidateSelf();
           return true;
         } catch (rpcError) {
-          print('⚠️ RPC admin_upsert_category falló: $rpcError');
+          print('RPC admin_upsert_category falló: $rpcError');
         }
       }
 
@@ -797,7 +797,7 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<Map<String, dynamic>>> 
           ref.invalidateSelf();
           return true;
         } catch (rpcError) {
-          print('⚠️ RPC admin_delete_category falló: $rpcError');
+          print('RPC admin_delete_category falló: $rpcError');
         }
       }
 

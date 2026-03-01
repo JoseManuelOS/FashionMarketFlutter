@@ -176,8 +176,9 @@ class ProductModel with _$ProductModel {
     if (stockBySize != null && stockBySize!.containsKey(size)) {
       return stockBySize![size] ?? 0;
     }
-    // Si no hay stock por talla, usar stock general
-    return stock;
+    // Si no hay stock por talla, devolver 0 (no usar stock total,
+    // que es la suma de todas las tallas y podría ser engañoso)
+    return 0;
   }
 
   /// Stock por talla filtrado por color.

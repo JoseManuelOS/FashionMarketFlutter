@@ -282,7 +282,7 @@ class _SizeRecommenderModalState extends State<SizeRecommenderModal> {
               ),
             ),
             child: Text(
-              '💡 Esta es una recomendación orientativa. El ajuste puede variar según el modelo.',
+              'Esta es una recomendacion orientativa. El ajuste puede variar segun el modelo.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.4),

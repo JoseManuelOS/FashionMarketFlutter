@@ -6,7 +6,7 @@ part of 'product_form_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$productFormHash() => r'd8903109d261ee616ab1e8cca945b4f41e3f382d';
+String _$productFormHash() => r'ca831a7df69ea4294b25c0e36dbdfdc8767eacb6';
 
 /// Provider para manejar el formulario de productos (crear/editar)
 ///

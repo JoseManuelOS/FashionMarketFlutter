@@ -26,6 +26,8 @@ class AdminProductsScreen extends ConsumerStatefulWidget {
 class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  /// null = Todos, true = Activos, false = Inactivos
+  bool? _activeFilter;
 
   @override
   void dispose() {
@@ -34,14 +36,25 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
   }
 
   List<Map<String, dynamic>> _filterProducts(List<Map<String, dynamic>> products) {
-    if (_searchQuery.isEmpty) return products;
-    final query = _searchQuery.toLowerCase();
-    return products.where((product) {
-      final name = (product['name'] as String? ?? '').toLowerCase();
-      final category = (product['category']?['name'] as String? ?? '').toLowerCase();
-      final slug = (product['slug'] as String? ?? '').toLowerCase();
-      return name.contains(query) || category.contains(query) || slug.contains(query);
-    }).toList();
+    var filtered = products;
+
+    // Filtro por activo/inactivo
+    if (_activeFilter != null) {
+      filtered = filtered.where((p) => (p['active'] as bool? ?? true) == _activeFilter).toList();
+    }
+
+    // Filtro por búsqueda
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((product) {
+        final name = (product['name'] as String? ?? '').toLowerCase();
+        final category = (product['category']?['name'] as String? ?? '').toLowerCase();
+        final slug = (product['slug'] as String? ?? '').toLowerCase();
+        return name.contains(query) || category.contains(query) || slug.contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
   @override
@@ -118,6 +131,31 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
+          // Filtros activo/inactivo
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D0D14),
+              border: Border(
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+            ),
+            child: Row(
+              children: [
+                _buildFilterChip('Todos', _activeFilter == null, () {
+                  setState(() => _activeFilter = null);
+                }),
+                const SizedBox(width: 8),
+                _buildFilterChip('Activos', _activeFilter == true, () {
+                  setState(() => _activeFilter = true);
+                }),
+                const SizedBox(width: 8),
+                _buildFilterChip('Inactivos', _activeFilter == false, () {
+                  setState(() => _activeFilter = false);
+                }),
+              ],
+            ),
+          ),
           // Lista de productos
           Expanded(
             child: productsAsync.when(
@@ -125,8 +163,8 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
                 child: CircularProgressIndicator(color: AppColors.neonCyan),
               ),
               error: (e, stack) {
-                print('❌ Error cargando productos: $e');
-                print('📍 Stack: $stack');
+                print('Error cargando productos: $e');
+                print('Stack: $stack');
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -231,6 +269,31 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.neonCyan.withValues(alpha: 0.15) : const Color(0xFF12121A),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.neonCyan : Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.neonCyan : Colors.grey[500],
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
@@ -561,7 +624,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
                                 ref.invalidate(adminDashboardStatsProvider);
                                 parentScaffoldMessenger.showSnackBar(
                                   const SnackBar(
-                                    content: Text('✅ Producto creado correctamente'),
+                                    content: Text('Producto creado correctamente'),
                                     backgroundColor: Colors.green,
                                   ),
                                 );
@@ -1173,8 +1236,8 @@ class _ProductCard extends ConsumerWidget {
         SnackBar(
           content: Text(
             isActive
-                ? '✅ Producto desactivado correctamente'
-                : '✅ Producto reactivado correctamente',
+                ? 'Producto desactivado correctamente'
+                : 'Producto reactivado correctamente',
           ),
           backgroundColor: Colors.green,
         ),
@@ -1840,7 +1903,7 @@ class _ProductCard extends ConsumerWidget {
                                 ref.invalidate(adminDashboardStatsProvider);
                                 parentScaffoldMessenger.showSnackBar(
                                   const SnackBar(
-                                    content: Text('✅ Producto actualizado correctamente'),
+                                    content: Text('Producto actualizado correctamente'),
                                     backgroundColor: Colors.green,
                                   ),
                                 );

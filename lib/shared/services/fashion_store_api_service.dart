@@ -152,17 +152,24 @@ class FashionStoreApiService {
 
   /// Valida un código de descuento con la API completa del backend
   /// (incluye verificación de uso único por cliente, límites, fechas)
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> validateDiscountCode({
     required String code,
     String? customerEmail,
   }) async {
+    final bodyData = {
+      'code': code,
+      'customerEmail': customerEmail,
+    };
+
+    if (kIsWeb) {
+      return _callPublicRelay(action: 'validate-discount', body: bodyData);
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/discount/validate'),
       headers: _headers,
-      body: jsonEncode({
-        'code': code,
-        'customerEmail': customerEmail,
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
@@ -226,42 +233,54 @@ class FashionStoreApiService {
   // ════════════════════════════════════════════════════════════════════════
 
   /// Envía email de bienvenida al registrarse
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendWelcomeEmail({
     required String to,
     required String name,
   }) async {
+    final bodyData = {'to': to, 'name': name};
+
+    if (kIsWeb) {
+      return _callPublicRelay(action: 'send-welcome', body: bodyData);
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-welcome'),
       headers: _headers,
-      body: jsonEncode({
-        'to': to,
-        'name': name,
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
   }
 
   /// Suscribe al newsletter vía API (envía email de bienvenida con código promo)
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> subscribeNewsletter({
     required String email,
     String? name,
     String source = 'flutter_app',
   }) async {
+    final bodyData = {
+      'email': email,
+      'name': name,
+      'source': source,
+    };
+
+    if (kIsWeb) {
+      return _callPublicRelay(action: 'newsletter-subscribe', body: bodyData);
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/newsletter/subscribe'),
       headers: _headers,
-      body: jsonEncode({
-        'email': email,
-        'name': name,
-        'source': source,
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
   }
 
   /// Envía notificación de envío al cliente
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendShippingUpdate({
     required String to,
     required String orderId,
@@ -270,25 +289,36 @@ class FashionStoreApiService {
     String? trackingUrl,
     String? carrierName,
     int? orderNumber,
+    String? adminEmail,
   }) async {
+    final bodyData = {
+      'to': to,
+      'customerName': customerName,
+      'orderId': orderId,
+      'trackingNumber': trackingNumber,
+      'trackingUrl': trackingUrl,
+      'carrierName': carrierName,
+      'orderNumber': orderNumber,
+    };
+
+    if (kIsWeb && adminEmail != null) {
+      return _callAdminRelay(
+        action: 'send-shipping-update',
+        body: {'adminEmail': adminEmail, ...bodyData},
+      );
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-shipping-update'),
       headers: _headers,
-      body: jsonEncode({
-        'to': to,
-        'customerName': customerName,
-        'orderId': orderId,
-        'trackingNumber': trackingNumber,
-        'trackingUrl': trackingUrl,
-        'carrierName': carrierName,
-        'orderNumber': orderNumber,
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
   }
 
   /// Envía notificación de pedido entregado al cliente
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendOrderDelivered({
     required String to,
     required String orderRef,
@@ -296,18 +326,28 @@ class FashionStoreApiService {
     List<Map<String, dynamic>>? orderItems,
     double? totalPrice,
     String? deliveredDate,
+    String? adminEmail,
   }) async {
+    final bodyData = {
+      'to': to,
+      'customerName': customerName,
+      'orderRef': orderRef,
+      'orderItems': orderItems,
+      'totalPrice': totalPrice,
+      'deliveredDate': deliveredDate ?? DateTime.now().toIso8601String(),
+    };
+
+    if (kIsWeb && adminEmail != null) {
+      return _callAdminRelay(
+        action: 'send-order-delivered',
+        body: {'adminEmail': adminEmail, ...bodyData},
+      );
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-order-delivered'),
       headers: _headers,
-      body: jsonEncode({
-        'to': to,
-        'customerName': customerName,
-        'orderRef': orderRef,
-        'orderItems': orderItems,
-        'totalPrice': totalPrice,
-        'deliveredDate': deliveredDate ?? DateTime.now().toIso8601String(),
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
@@ -330,14 +370,21 @@ class FashionStoreApiService {
     return jsonDecode(response.body);
   }
 
-  /// Envía factura al cliente (admin)
+  /// Envía factura al cliente
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendInvoice({
     required String orderId,
   }) async {
+    final bodyData = {'orderId': orderId};
+
+    if (kIsWeb) {
+      return _callPublicRelay(action: 'send-invoice', body: bodyData);
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/invoice/send'),
       headers: _headers,
-      body: jsonEncode({'orderId': orderId}),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
@@ -408,13 +455,12 @@ class FashionStoreApiService {
     required String action,
     required Map<String, dynamic> body,
   }) async {
-    final supabaseSession = Supabase.instance.client.auth.currentSession;
+    // Admin no tiene sesión Supabase Auth (usa tabla custom admins),
+    // solo enviamos apikey + adminEmail en body para autenticar
     final response = await http.post(
       Uri.parse(_relayUrl),
       headers: {
         'Content-Type': 'application/json',
-        if (supabaseSession != null)
-          'Authorization': 'Bearer ${supabaseSession.accessToken}',
         'apikey': AppConstants.supabaseAnonKey,
       },
       body: jsonEncode({'action': action, ...body}),
@@ -462,7 +508,58 @@ class FashionStoreApiService {
     return jsonDecode(response.body);
   }
 
+  /// Rechazar devolución desde admin (envía email de rechazo al cliente)
+  /// Se gestiona directamente en el relay (no existe endpoint en FashionStore).
+  static Future<Map<String, dynamic>> rejectReturn({
+    required String orderId,
+    required String adminEmail,
+    required String reason,
+    String? customerEmail,
+    String? customerName,
+    int? orderNumber,
+    String? returnReason,
+  }) async {
+    return _callAdminRelay(
+      action: 'reject-return',
+      body: {
+        'adminEmail': adminEmail,
+        'orderId': orderId,
+        'reason': reason,
+        if (customerEmail != null) 'customerEmail': customerEmail,
+        if (customerName != null) 'customerName': customerName,
+        if (orderNumber != null) 'orderNumber': orderNumber,
+        if (returnReason != null) 'returnReason': returnReason,
+      },
+    );
+  }
+
+  /// Aceptar devolución parcial: crea factura rectificativa + envía email con PDFs
+  /// Se gestiona directamente en el relay (no existe endpoint en FashionStore).
+  static Future<Map<String, dynamic>> acceptPartialReturn({
+    required String orderId,
+    required String adminEmail,
+    required String customerEmail,
+    required String customerName,
+    required List<Map<String, dynamic>> returnedItems,
+    required double refundAmount,
+    int? orderNumber,
+  }) async {
+    return _callAdminRelay(
+      action: 'accept-partial-return',
+      body: {
+        'adminEmail': adminEmail,
+        'orderId': orderId,
+        'customerEmail': customerEmail,
+        'customerName': customerName,
+        'returnedItems': returnedItems,
+        'refundAmount': refundAmount,
+        if (orderNumber != null) 'orderNumber': orderNumber,
+      },
+    );
+  }
+
   /// Envía email de confirmación de pedido
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendOrderConfirmation({
     required String to,
     required String customerName,
@@ -473,25 +570,32 @@ class FashionStoreApiService {
     int? orderNumber,
     String? orderId,
   }) async {
+    final bodyData = {
+      'to': to,
+      'customerName': customerName,
+      'orderItems': orderItems,
+      'total': total,
+      'sessionId': sessionId,
+      'shippingAddress': shippingAddress,
+      'orderNumber': orderNumber,
+      'orderId': orderId,
+    };
+
+    if (kIsWeb) {
+      return _callPublicRelay(action: 'send-order-confirmation', body: bodyData);
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-order-confirmation'),
       headers: _headers,
-      body: jsonEncode({
-        'to': to,
-        'customerName': customerName,
-        'orderItems': orderItems,
-        'total': total,
-        'sessionId': sessionId,
-        'shippingAddress': shippingAddress,
-        'orderNumber': orderNumber,
-        'orderId': orderId,
-      }),
+      body: jsonEncode(bodyData),
     );
 
     return jsonDecode(response.body);
   }
 
   /// Envía newsletter masivo (admin)
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> sendNewsletter({
     required String subject,
     required String content,
@@ -501,6 +605,7 @@ class FashionStoreApiService {
     String? promoDiscount,
     String? buttonText,
     String? buttonUrl,
+    String? adminEmail,
   }) async {
     final body = <String, dynamic>{
       'subject': subject,
@@ -512,6 +617,13 @@ class FashionStoreApiService {
     if (promoDiscount != null) body['promoDiscount'] = promoDiscount;
     if (buttonText != null) body['buttonText'] = buttonText;
     if (buttonUrl != null) body['buttonUrl'] = buttonUrl;
+
+    if (kIsWeb && adminEmail != null) {
+      return _callAdminRelay(
+        action: 'send-newsletter',
+        body: {'adminEmail': adminEmail, ...body},
+      );
+    }
 
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-newsletter'),

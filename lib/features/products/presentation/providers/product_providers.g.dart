@@ -6,7 +6,7 @@ part of 'product_providers.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$productListHash() => r'1533db289b64ce7f4aba151ea371dfaf8cf6d90a';
+String _$productListHash() => r'aadc18bd23eb76936e68adb66312a651ac50332d';
 
 /// Provider para la lista de productos (con Riverpod Generator)
 ///
@@ -23,7 +23,7 @@ final productListProvider =
 );
 
 typedef _$ProductList = AutoDisposeAsyncNotifier<List<ProductModel>>;
-String _$productDetailHash() => r'3b333a7865985830fa271f05bb917f9d67b0d845';
+String _$productDetailHash() => r'36a989a7ec90502ba2544d7c67d918e2288691f1';
 
 /// Copied from Dart SDK
 class _SystemHash {
@@ -202,7 +202,7 @@ class _ProductDetailProviderElement
   String get productId => (origin as ProductDetailProvider).productId;
 }
 
-String _$productSearchHash() => r'fa3ce4984b84c506e2908327772c267e91d50c2d';
+String _$productSearchHash() => r'3b8cda9ff163f4372df6cacba9c99a411c341f0a';
 
 abstract class _$ProductSearch
     extends BuildlessAutoDisposeAsyncNotifier<List<ProductModel>> {

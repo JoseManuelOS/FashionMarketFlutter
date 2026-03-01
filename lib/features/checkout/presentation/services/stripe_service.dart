@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../shared/services/fashion_store_api_service.dart';
@@ -12,6 +13,61 @@ class StripeService {
   // Stripe publishable key (from FashionStore .env)
   static const String publishableKey =
       'pk_test_51SLMKqPdrdVG7wyai3GefN69zdF4z70PatD0TL0BnOzBhdf3GqGQFkI3lg8ArG3hIn1urgvySQPtERzKXSYBIP7W00aJ234hMU';
+
+  /// Resuelve el color real de la variante en product_variants para un item del carrito.
+  /// 
+  /// El carrito almacena colores de product_images (ej. "brown", "Rojo"),
+  /// pero product_variants puede tener color = '' (vacío).
+  /// El backend valida stock con product_variants.color, por lo que debemos
+  /// enviar el color exacto de la variante, no el de la imagen.
+  /// 
+  /// Usa stockBySizeColor del API de stock para encontrar la clave correcta.
+  /// Las claves son "S" (color='') o "S|red" (color='red').
+  static Future<Map<String, String>> _resolveVariantColors(
+    List<CartItemModel> items,
+  ) async {
+    // Cache: productId → { size → variantColor }
+    final Map<String, Map<String, String>> productSizeColorMap = {};
+    // Result: cartItemUniqueId → variantColor
+    final Map<String, String> resolved = {};
+
+    for (final item in items) {
+      // Fetch stock data once per product
+      if (!productSizeColorMap.containsKey(item.productId)) {
+        try {
+          // Call without color filter to get ALL variants
+          final result = await FashionStoreApiService.getStockBySize(
+            productId: item.productId,
+          );
+          final stockBySizeColor = result['stockBySizeColor'] as Map?;
+          final sizeColorMap = <String, String>{};
+
+          if (stockBySizeColor != null) {
+            for (final key in stockBySizeColor.keys) {
+              final keyStr = key.toString();
+              // Key format: "S" (no color) or "S|red" (with color)
+              if (keyStr.contains('|')) {
+                final parts = keyStr.split('|');
+                sizeColorMap[parts[0]] = parts[1]; // size → variantColor
+              } else {
+                sizeColorMap[keyStr] = ''; // size → '' (empty color)
+              }
+            }
+          }
+          productSizeColorMap[item.productId] = sizeColorMap;
+        } catch (e) {
+          debugPrint('[Checkout] Error resolviendo color para ${item.productId}: $e');
+          productSizeColorMap[item.productId] = {};
+        }
+      }
+
+      final sizeMap = productSizeColorMap[item.productId]!;
+      // Use the variant color for this size, fallback to cart color
+      resolved[item.uniqueId] = sizeMap[item.size] ?? item.color ?? '';
+    }
+
+    return resolved;
+  }
 
   /// Crea una sesión de Stripe Checkout llamando al API de FashionStore
   /// Retorna la URL de Stripe para redirigir al usuario al pago
@@ -29,6 +85,12 @@ class StripeService {
     double shippingCost = 0,
   }) async {
     try {
+      // Resolver el color real de las variantes en product_variants.
+      // El carrito guarda colores de product_images (ej. "brown"), pero
+      // product_variants puede tener color = '' (vacío). Si no coinciden,
+      // el backend rechaza el pago por "stock insuficiente".
+      final variantColors = await _resolveVariantColors(items);
+
       // Convertir CartItemModel a formato que espera el API
       final apiItems = items.map((item) => {
         'id': item.productId,
@@ -36,7 +98,7 @@ class StripeService {
         'price': item.price,
         'quantity': item.quantity,
         'size': item.size,
-        'color': item.color ?? '',
+        'color': variantColors[item.uniqueId] ?? item.color ?? '',
         'image': item.imageUrl,
       }).toList();
 

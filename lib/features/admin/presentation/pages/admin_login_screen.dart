@@ -38,7 +38,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
     });
 
     try {
-      print('🔑 Iniciando login con: ${_emailController.text.trim()}');
+      print('Iniciando login con: ${_emailController.text.trim()}');
       
       final admin = await ref.read(adminAuthProvider.notifier).signIn(
             email: _emailController.text.trim(),
@@ -46,11 +46,11 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
           );
 
       if (admin != null && mounted) {
-        print('✅ Redirigiendo a dashboard');
+        print('Redirigiendo a dashboard');
         context.go(AppRoutes.adminDashboard);
       }
     } catch (e) {
-      print('❌ Error en login admin: $e');
+      print('Error en login admin: $e');
       if (mounted) {
         setState(() {
           final errorStr = e.toString().toLowerCase();

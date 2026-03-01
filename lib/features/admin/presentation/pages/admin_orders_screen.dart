@@ -51,6 +51,21 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
+  /// Todos los valores posibles de filtro para invalidar la cache completa
+  static const _allStatusFilters = <String?>[
+    null, 'paid', 'shipped', 'delivered',
+    'return_requested', 'returned', 'partial_return', 'return_rejected', 'cancelled',
+  ];
+
+  /// Invalida TODAS las variantes cacheadas (Todos + cada filtro).
+  /// Soluciona que cambiar el estado de un pedido solo actualizaba la
+  /// pestaña activa y las demás mostraban datos obsoletos.
+  void _invalidateAllOrders() {
+    for (final status in _allStatusFilters) {
+      ref.invalidate(adminOrdersProvider(status));
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -166,6 +181,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                   const SizedBox(width: 8),
                   _buildFilterChip('Dev. parcial', 'partial_return'),
                   const SizedBox(width: 8),
+                  _buildFilterChip('Dev. rechazada', 'return_rejected'),
+                  const SizedBox(width: 8),
                   _buildFilterChip('Cancelados', 'cancelled'),
                 ],
               ),
@@ -179,8 +196,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                 child: CircularProgressIndicator(color: AppColors.neonCyan),
               ),
               error: (e, stack) {
-                print('❌ Error cargando pedidos: $e');
-                print('📍 Stack: $stack');
+                print('Error cargando pedidos: $e');
+                print('Stack: $stack');
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -204,7 +221,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       ),
                       const SizedBox(height: 16),
                       TextButton(
-                        onPressed: () => ref.invalidate(adminOrdersProvider(_selectedStatus)),
+                        onPressed: () => _invalidateAllOrders(),
                         child: const Text('Reintentar'),
                       ),
                     ],
@@ -258,7 +275,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                   color: AppColors.neonCyan,
                   backgroundColor: const Color(0xFF12121A),
                   onRefresh: () async {
-                    ref.invalidate(adminOrdersProvider(_selectedStatus));
+                    _invalidateAllOrders();
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
@@ -449,7 +466,16 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       color: Colors.green,
                       onTap: () => _updateOrderStatus(order['id'], 'delivered'),
                     ),
-                  if (status == 'delivered' || status == 'return_requested' || status == 'partial_return')
+                  if (status == 'return_requested')
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _buildActionButton(
+                        icon: Icons.cancel_outlined,
+                        color: Colors.red,
+                        onTap: () => _showRejectReturnDialog(order),
+                      ),
+                    ),
+                  if (status == 'return_requested')
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: _buildActionButton(
@@ -542,6 +568,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           'color': Colors.teal,
           'icon': Icons.assignment_return_outlined,
         };
+      case 'return_rejected':
+        return {
+          'label': 'Devolución rechazada',
+          'color': Colors.red,
+          'icon': Icons.block,
+        };
       default:
         return {
           'label': status,
@@ -568,7 +600,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         if (result['success'] != true) {
           throw Exception(result['error'] ?? 'Error al cancelar');
         }
-        ref.invalidate(adminOrdersProvider(_selectedStatus));
+        _invalidateAllOrders();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -590,7 +622,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           if (result['success'] != true) {
             throw Exception(result['error'] ?? 'Error al aceptar devolución');
           }
-          ref.invalidate(adminOrdersProvider(_selectedStatus));
+          _invalidateAllOrders();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -600,14 +632,18 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             );
           }
         } catch (e) {
-          // Si falla la API, al menos actualizar estado en Supabase
-          debugPrint('⚠️ Error en API accept-return: $e — Actualizando estado directamente');
+          // Si falla la API, al menos actualizar estado via RPC
+          debugPrint('Error en API accept-return: $e — Actualizando estado via RPC');
           final supabase = ref.read(supabaseProvider);
-          await supabase
-              .from('orders')
-              .update({'status': 'returned'})
-              .eq('id', orderId);
-          ref.invalidate(adminOrdersProvider(_selectedStatus));
+          await supabase.rpc(
+            'admin_update_order_status',
+            params: {
+              'p_admin_email': admin.email,
+              'p_order_id': orderId.toString(),
+              'p_new_status': 'returned',
+            },
+          );
+          _invalidateAllOrders();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -620,60 +656,68 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         return;
       }
 
-      // ── Otros cambios de estado (directos a Supabase) ──
+      // ── Otros cambios de estado via RPC (bypasa RLS) ──
       final supabase = ref.read(supabaseProvider);
-      final updateData = <String, dynamic>{'status': newStatus};
-      
-      // Si se marca como entregado, añadir fecha
-      if (newStatus == 'delivered') {
-        updateData['delivered_at'] = DateTime.now().toIso8601String();
-      }
-      
-      await supabase
-          .from('orders')
-          .update(updateData)
-          .eq('id', orderId);
+      final adminEmail = admin?.email ?? '';
+      await supabase.rpc(
+        'admin_update_order_status',
+        params: {
+          'p_admin_email': adminEmail,
+          'p_order_id': orderId.toString(),
+          'p_new_status': newStatus,
+        },
+      );
 
       // ── Enviar email de entrega al cliente ──
       if (newStatus == 'delivered') {
         try {
-          // Obtener datos del pedido para el email
-          final orderData = await supabase
-              .from('orders')
-              .select('*, items:order_items(*)')
-              .eq('id', orderId)
-              .single();
+          // Usar RPC para obtener datos del pedido (bypasa RLS)
+          final ordersJson = await supabase.rpc(
+            'admin_get_orders',
+            params: {
+              'p_admin_email': admin?.email ?? '',
+              'p_status': null,
+            },
+          );
+          final ordersList = ordersJson as List? ?? [];
+          final orderData = ordersList.cast<Map<String, dynamic>>().firstWhere(
+            (o) => o['id'].toString() == orderId.toString(),
+            orElse: () => <String, dynamic>{},
+          );
 
-          final customerEmail = orderData['customer_email'] as String?;
-          final customerName = orderData['customer_name'] as String? ?? 'Cliente';
-          final orderNumber = orderData['order_number'];
-          final orderRef = orderNumber != null 
-              ? orderNumber.toString() 
-              : orderId.toString().substring(0, 8).toUpperCase();
-          final total = (orderData['total'] ?? 0).toDouble();
-          final items = (orderData['items'] as List?)?.map((item) => {
-            'name': item['product_name'] ?? '',
-            'size': item['size'] ?? '',
-            'quantity': item['quantity'] ?? 1,
-            'price': item['unit_price'] ?? item['price'] ?? 0,
-            'image': item['product_image'] ?? '',
-          }).toList();
+          if (orderData.isNotEmpty) {
+            final customerEmail = orderData['customer_email'] as String?;
+            final customerName = orderData['customer_name'] as String? ?? 'Cliente';
+            final orderNumber = orderData['order_number'];
+            final orderRef = orderNumber != null 
+                ? orderNumber.toString() 
+                : orderId.toString().substring(0, 8).toUpperCase();
+            final total = (orderData['total_price'] ?? 0).toDouble();
+            final items = (orderData['items'] as List?)?.map((item) => {
+              'product_name': item['product_name'] ?? '',
+              'size': item['size'] ?? '',
+              'quantity': item['quantity'] ?? 1,
+              'price_at_purchase': (item['price_at_purchase'] ?? 0).toDouble(),
+              'product_image': item['product_image'] ?? '',
+            }).toList();
 
-          if (customerEmail != null) {
-            await FashionStoreApiService.sendOrderDelivered(
-              to: customerEmail,
-              customerName: customerName,
-              orderRef: orderRef,
-              orderItems: items,
-              totalPrice: total,
-            );
+            if (customerEmail != null) {
+              await FashionStoreApiService.sendOrderDelivered(
+                to: customerEmail,
+                customerName: customerName,
+                orderRef: orderRef,
+                orderItems: items,
+                totalPrice: total,
+                adminEmail: adminEmail,
+              );
+            }
           }
         } catch (_) {
           // No bloquear la actualización si falla el email
         }
       }
 
-      ref.invalidate(adminOrdersProvider(_selectedStatus));
+      _invalidateAllOrders();
 
       if (mounted) {
         final statusLabel = _getStatusInfo(newStatus)['label'];
@@ -704,33 +748,98 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     required String? trackingNumber,
     required String? trackingUrl,
     required bool markAsShipped,
+    String? newStatus,
   }) async {
     try {
+      final admin = ref.read(adminSessionProvider);
       final supabase = ref.read(supabaseProvider);
-      final updateData = <String, dynamic>{
-        'shipping_carrier': shippingCarrier,
-        'tracking_number': trackingNumber,
-        'tracking_url': trackingUrl,
-      };
 
-      if (markAsShipped) {
-        updateData['status'] = 'shipped';
-        updateData['shipped_at'] = DateTime.now().toIso8601String();
+      // Determinar el estado final
+      String? effectiveStatus = newStatus;
+      if (effectiveStatus == null && markAsShipped) {
+        effectiveStatus = 'shipped';
       }
 
-      await supabase
-          .from('orders')
-          .update(updateData)
-          .eq('id', orderId);
+      // Usar RPC admin_update_order_status que tiene SECURITY DEFINER (bypasa RLS)
+      // Este RPC también gestiona shipped_at, delivered_at, shipping_carrier, tracking*, etc.
+      await supabase.rpc(
+        'admin_update_order_status',
+        params: {
+          'p_admin_email': admin?.email ?? '',
+          'p_order_id': orderId.toString(),
+          'p_new_status': effectiveStatus,
+          'p_shipping_carrier': shippingCarrier,
+          'p_tracking_number': trackingNumber,
+          'p_tracking_url': trackingUrl,
+        },
+      );
+
+      // ── Enviar email de entrega al cliente si se marca como entregado ──
+      if (effectiveStatus == 'delivered') {
+        try {
+          // Usar RPC para obtener datos del pedido (bypasa RLS)
+          final ordersJson = await supabase.rpc(
+            'admin_get_orders',
+            params: {
+              'p_admin_email': admin?.email ?? '',
+              'p_status': null,
+            },
+          );
+          final ordersList = ordersJson as List? ?? [];
+          final orderData = ordersList.cast<Map<String, dynamic>>().firstWhere(
+            (o) => o['id'].toString() == orderId.toString(),
+            orElse: () => <String, dynamic>{},
+          );
+
+          if (orderData.isNotEmpty) {
+            final customerEmail = orderData['customer_email'] as String?;
+            final customerName = orderData['customer_name'] as String? ?? 'Cliente';
+            final orderNumber = orderData['order_number'];
+            final orderRef = orderNumber != null
+                ? orderNumber.toString()
+                : orderId.toString().substring(0, 8).toUpperCase();
+            final total = (orderData['total_price'] ?? 0).toDouble();
+            final items = (orderData['items'] as List?)?.map((item) => {
+              'product_name': item['product_name'] ?? '',
+              'size': item['size'] ?? '',
+              'quantity': item['quantity'] ?? 1,
+              'price_at_purchase': (item['price_at_purchase'] ?? 0).toDouble(),
+              'product_image': item['product_image'] ?? '',
+            }).toList();
+
+            if (customerEmail != null) {
+              await FashionStoreApiService.sendOrderDelivered(
+                to: customerEmail,
+                customerName: customerName,
+                orderRef: orderRef,
+                orderItems: items,
+                totalPrice: total,
+                adminEmail: admin?.email,
+              );
+            }
+          }
+        } catch (_) {
+          // No bloquear la actualización si falla el email
+        }
+      }
 
       // ── Enviar email de actualización de envío al cliente ──
-      if (markAsShipped && trackingNumber != null && trackingNumber.isNotEmpty) {
+      final isShipped = effectiveStatus == 'shipped';
+      if (isShipped && trackingNumber != null && trackingNumber.isNotEmpty) {
         try {
-          final orderData = await supabase
-              .from('orders')
-              .select('customer_email, customer_name, order_number')
-              .eq('id', orderId)
-              .single();
+          // Usar RPC para obtener datos del pedido (bypasa RLS)
+          final ordersJson = await supabase.rpc(
+            'admin_get_orders',
+            params: {
+              'p_admin_email': admin?.email ?? '',
+              'p_status': null,
+            },
+          );
+          final ordersList = ordersJson as List? ?? [];
+          final orderData = ordersList.cast<Map<String, dynamic>>().firstWhere(
+            (o) => o['id'].toString() == orderId.toString(),
+            orElse: () => <String, dynamic>{},
+          );
 
           final customerEmail = orderData['customer_email'] as String?;
           if (customerEmail != null) {
@@ -742,6 +851,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
               trackingUrl: trackingUrl,
               carrierName: shippingCarrier,
               orderNumber: orderData['order_number'] as int?,
+              adminEmail: admin?.email,
             );
           }
         } catch (_) {
@@ -749,16 +859,15 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         }
       }
 
-      ref.invalidate(adminOrdersProvider(_selectedStatus));
+      _invalidateAllOrders();
 
       if (mounted) {
-        final emailMsg = markAsShipped ? ' - Email de envío enviado al cliente' : '';
+        final statusLabel = effectiveStatus != null ? _getStatusInfo(effectiveStatus)['label'] : null;
+        final statusMsg = statusLabel != null ? 'Estado: $statusLabel. ' : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              markAsShipped
-                  ? 'Pedido marcado como enviado$emailMsg'
-                  : 'Datos de envío actualizados',
+              '${statusMsg}Datos de envío actualizados',
             ),
             backgroundColor: Colors.green,
           ),
@@ -776,13 +885,52 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     }
   }
 
-  /// Diálogo de devolución — si el cliente la solicitó los items vienen pre-seleccionados
+  /// Parsear la razón estructurada del cliente para extraer items y cantidades.
+  /// Formato esperado:
+  /// [Articulos solicitados]
+  /// - NombreProducto (Talla X)
+  /// - NombreProducto (Talla X) (2 de 3 uds)
+  /// [Motivo]
+  /// texto libre
+  Map<String, int>? _parseClientReturnItems(
+    String? returnReason,
+    List<Map<String, dynamic>> orderItems,
+  ) {
+    if (returnReason == null || !returnReason.contains('[Articulos solicitados]')) return null;
+
+    final itemsSection = returnReason.split('[Motivo]').first;
+    final lines = itemsSection.split('\n').where((l) => l.trim().startsWith('- ')).toList();
+
+    final result = <String, int>{};
+    for (final line in lines) {
+      final text = line.trim().substring(2); // Quitar "- "
+      // Intentar extraer nombre y talla (la talla puede tener espacios, ej: "TALLA ÚNICA")
+      final tallaMatch = RegExp(r'^(.+?)\s*\(Talla\s+(.+?)\)').firstMatch(text);
+      if (tallaMatch == null) continue;
+      final name = tallaMatch.group(1)!.trim();
+      final size = tallaMatch.group(2)!.trim();
+      // Intentar extraer cantidad parcial "(X de Y uds)"
+      final qtyMatch = RegExp(r'\((\d+)\s+de\s+\d+\s+uds?\)').firstMatch(text);
+
+      // Buscar el item correspondiente por nombre + talla
+      for (final item in orderItems) {
+        final itemName = (item['product_name'] as String? ?? '').trim();
+        final itemSize = (item['size'] as String? ?? '').trim();
+        if (itemName == name && itemSize == size) {
+          final qty = qtyMatch != null ? int.parse(qtyMatch.group(1)!) : (item['quantity'] as int? ?? 1);
+          result[item['id'].toString()] = qty;
+          break;
+        }
+      }
+    }
+    return result.isEmpty ? null : result;
+  }
+
+  /// Diálogo de devolución — si el cliente la solicitó los items vienen pre-seleccionados y son de solo lectura
   void _showPartialReturnDialog(Map<String, dynamic> order) async {
     final admin = ref.read(adminSessionProvider);
     final supabase = ref.read(supabaseProvider);
     final orderId = order['id'];
-    final orderStatus = order['status'] as String? ?? '';
-    final isCustomerRequested = orderStatus == 'return_requested';
 
     // Obtener items del pedido con devoluciones previas
     List<Map<String, dynamic>> items;
@@ -816,8 +964,16 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     // Map: order_item_id → cantidad a devolver
     final Map<String, int> returnQuantities = {};
 
-    // Si el cliente ya solicitó la devolución, pre-seleccionar todos los items disponibles
-    if (isCustomerRequested) {
+    // Pre-seleccionar los items que el cliente solicitó devolver
+    final clientParsed = _parseClientReturnItems(
+      order['return_reason'] as String?,
+      items,
+    );
+    if (clientParsed != null) {
+      // Items del cliente parseados correctamente
+      returnQuantities.addAll(clientParsed);
+    } else {
+      // Formato legacy (sin [Articulos solicitados]): seleccionar todos
       for (final item in items) {
         final itemId = item['id'].toString();
         final qty = item['quantity'] as int;
@@ -827,7 +983,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       }
     }
 
-    final reasonController = TextEditingController();
     bool isProcessing = false;
 
     if (!mounted) return;
@@ -873,8 +1028,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                     Row(
                       children: [
                         Icon(
-                          isCustomerRequested ? Icons.assignment_return : Icons.assignment_return_outlined,
-                          color: isCustomerRequested ? Colors.amber : Colors.teal,
+                          Icons.assignment_return,
+                          color: Colors.amber,
                           size: 24,
                         ),
                         const SizedBox(width: 10),
@@ -883,19 +1038,16 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                isCustomerRequested
-                                    ? 'Solicitud del cliente — Pedido #${order['order_number'] ?? orderId}'
-                                    : 'Devolución parcial — Pedido #${order['order_number'] ?? orderId}',
+                                'Solicitud del cliente — Pedido #${order['order_number'] ?? orderId}',
                                 style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                              if (isCustomerRequested)
-                                const Padding(
-                                  padding: EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'El cliente solicitó devolver todo el pedido. Ajusta las cantidades si quieres procesarlo de forma parcial.',
-                                    style: TextStyle(color: Colors.amber, fontSize: 12),
-                                  ),
+                              const Padding(
+                                padding: EdgeInsets.only(top: 4),
+                                child: Text(
+                                  'El cliente seleccionó los artículos a devolver. No se pueden modificar.',
+                                  style: TextStyle(color: Colors.amber, fontSize: 12),
                                 ),
+                              ),
                             ],
                           ),
                         ),
@@ -928,8 +1080,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
                     const SizedBox(height: 20),
 
-                    // Items
-                    ...items.map((item) {
+                    // Items — solo los que el cliente solicitó devolver
+                    ...items.where((item) => returnQuantities.containsKey(item['id'].toString())).map((item) {
                       final itemId = item['id'].toString();
                       final qty = item['quantity'] as int;
                       final alreadyReturned = (item['already_returned'] as num?)?.toInt() ?? 0;
@@ -996,74 +1148,52 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                             ),
                             if (available > 0) ...[
                               const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Text(
-                                    'Devolver:',
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // Decrease
-                                  InkWell(
-                                    onTap: currentReturn > 0
-                                        ? () => setModalState(() {
-                                              if (currentReturn <= 1) {
-                                                returnQuantities.remove(itemId);
-                                              } else {
-                                                returnQuantities[itemId] = currentReturn - 1;
-                                              }
-                                            })
-                                        : null,
-                                    child: Container(
-                                      width: 32, height: 32,
+                              // Solo lectura: mostrar cantidad solicitada por el cliente
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Devolver:',
+                                      style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
                                         color: currentReturn > 0
-                                            ? Colors.teal.withValues(alpha: 0.15)
+                                            ? Colors.amber.withValues(alpha: 0.12)
                                             : Colors.grey.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: currentReturn > 0
+                                              ? Colors.amber.withValues(alpha: 0.3)
+                                              : Colors.grey.withValues(alpha: 0.1),
+                                        ),
                                       ),
-                                      child: Icon(Icons.remove, size: 18,
-                                        color: currentReturn > 0 ? Colors.teal : Colors.grey[700]),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text(
-                                      '$currentReturn',
-                                      style: TextStyle(
-                                        color: currentReturn > 0 ? Colors.white : Colors.grey[600],
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                      child: Text(
+                                        currentReturn > 0 ? '$currentReturn ud${currentReturn > 1 ? 's' : ''}' : 'No solicitado',
+                                        style: TextStyle(
+                                          color: currentReturn > 0 ? Colors.amber : Colors.grey[600],
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  // Increase
-                                  InkWell(
-                                    onTap: currentReturn < available
-                                        ? () => setModalState(() {
-                                              returnQuantities[itemId] = currentReturn + 1;
-                                            })
-                                        : null,
-                                    child: Container(
-                                      width: 32, height: 32,
-                                      decoration: BoxDecoration(
-                                        color: currentReturn < available
-                                            ? Colors.teal.withValues(alpha: 0.15)
-                                            : Colors.grey.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(8),
+                                    if (currentReturn > 0 && available > currentReturn)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Text(
+                                          'de $available disponibles',
+                                          style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                                        ),
                                       ),
-                                      child: Icon(Icons.add, size: 18,
-                                        color: currentReturn < available ? Colors.teal : Colors.grey[700]),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  if (currentReturn > 0)
-                                    Text(
-                                      '€${(price * currentReturn).toStringAsFixed(2)}',
-                                      style: const TextStyle(color: Colors.teal, fontSize: 14, fontWeight: FontWeight.w600),
-                                    ),
-                                ],
-                              ),
+                                    const Spacer(),
+                                    if (currentReturn > 0)
+                                      Text(
+                                        '€${(price * currentReturn).toStringAsFixed(2)}',
+                                        style: const TextStyle(color: Colors.teal, fontSize: 14, fontWeight: FontWeight.w600),
+                                      ),
+                                  ],
+                                ),
                             ] else
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
@@ -1079,27 +1209,37 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Motivo
-                    TextField(
-                      controller: reasonController,
-                      maxLines: 2,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Motivo de devolución (opcional)',
-                        labelStyle: TextStyle(color: Colors.grey[500]),
-                        prefixIcon: const Icon(Icons.comment_outlined, color: Colors.teal),
-                        filled: true,
-                        fillColor: const Color(0xFF0D0D14),
-                        border: OutlineInputBorder(
+                    // Motivo del cliente (solo lectura)
+                    if (order['return_reason'] != null && (order['return_reason'] as String).isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.teal),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.format_quote, color: Colors.amber[300], size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Motivo del cliente',
+                                  style: TextStyle(color: Colors.amber[300], fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              order['return_reason'] as String,
+                              style: const TextStyle(color: Colors.white70, fontSize: 14),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
 
                     const SizedBox(height: 20),
 
@@ -1167,38 +1307,121 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                                           })
                                       .toList();
 
-                                  final result = await supabase.rpc(
-                                    'admin_process_partial_return',
-                                    params: {
-                                      'p_admin_email': admin?.email ?? '',
-                                      'p_data': {
-                                        'order_id': orderId.toString(),
-                                        'reason': reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
-                                        'items': itemsData,
-                                      },
-                                    },
-                                  );
+                                  // Detectar si es devolucion completa
+                                  bool isFullReturn = true;
+                                  for (final item in items) {
+                                    final itemId = item['id'].toString();
+                                    final qty = item['quantity'] as int;
+                                    final alreadyReturned = (item['already_returned'] as num?)?.toInt() ?? 0;
+                                    final available = qty - alreadyReturned;
+                                    final returning = returnQuantities[itemId] ?? 0;
+                                    if (returning < available) {
+                                      isFullReturn = false;
+                                      break;
+                                    }
+                                  }
 
-                                  // Enviar email de devolución aceptada vía FashionStore API
-                                  try {
-                                    await FashionStoreApiService.acceptReturn(
-                                      orderId: orderId.toString(),
-                                      adminEmail: admin?.email ?? '',
+                                  String resultMsg = '';
+
+                                  if (isFullReturn) {
+                                    // Devolucion completa desde return_requested:
+                                    // 1) Llamar a FashionStore PRIMERO (status aun es return_requested)
+                                    //    Esto hace: Stripe refund, factura rectificativa, email con PDFs, status->returned, stock
+                                    try {
+                                      final apiResult = await FashionStoreApiService.acceptReturn(
+                                        orderId: orderId.toString(),
+                                        adminEmail: admin?.email ?? '',
+                                      );
+                                      resultMsg = apiResult['message'] as String? ?? 'Devolucion aceptada';
+                                    } catch (e) {
+                                      // Si falla la API, procesar via RPC como fallback
+                                      debugPrint('Error en accept-return API: $e - Usando RPC como fallback');
+                                      final rpcResult = await supabase.rpc(
+                                        'admin_process_partial_return',
+                                        params: {
+                                          'p_admin_email': admin?.email ?? '',
+                                          'p_data': {
+                                            'order_id': orderId.toString(),
+                                            'reason': order['return_reason'],
+                                            'items': itemsData,
+                                          },
+                                        },
+                                      );
+                                      resultMsg = '${rpcResult?['message'] ?? 'Devolucion procesada'} (email no enviado)';
+                                    }
+                                  } else {
+                                    // Devolucion parcial: RPC + factura rectificativa + email
+                                    final rpcResult = await supabase.rpc(
+                                      'admin_process_partial_return',
+                                      params: {
+                                        'p_admin_email': admin?.email ?? '',
+                                        'p_data': {
+                                          'order_id': orderId.toString(),
+                                          'reason': order['return_reason'],
+                                          'items': itemsData,
+                                        },
+                                      },
                                     );
-                                  } catch (_) {
-                                    // Email no crítico — no bloquear la UI
-                                    debugPrint('⚠️ No se pudo enviar email de devolución');
+                                    resultMsg = rpcResult?['message'] ?? 'Devolucion parcial procesada';
+
+                                    // Obtener importe de reembolso del RPC
+                                    final refundAmount = (rpcResult?['refund_amount'] as num?)?.toDouble() ?? 0;
+
+                                    // Construir lista de items devueltos con detalles para factura rectificativa + email
+                                    final returnedItemsForRelay = returnQuantities.entries
+                                        .where((e) => e.value > 0)
+                                        .map((e) {
+                                          final item = items.firstWhere((i) => i['id'].toString() == e.key);
+                                          return {
+                                            'product_name': item['product_name'] ?? 'Producto',
+                                            'size': item['size'],
+                                            'color': item['color'],
+                                            'quantity': e.value,
+                                            'price': (item['price_at_purchase'] as num).toDouble(),
+                                          };
+                                        })
+                                        .toList();
+
+                                    // Crear factura rectificativa + enviar email via relay
+                                    if (refundAmount > 0) {
+                                      try {
+                                        final relayResult = await FashionStoreApiService.acceptPartialReturn(
+                                          orderId: orderId.toString(),
+                                          adminEmail: admin?.email ?? '',
+                                          customerEmail: order['customer_email'] as String? ?? '',
+                                          customerName: order['customer_name'] as String? ?? '',
+                                          orderNumber: order['order_number'] as int?,
+                                          returnedItems: returnedItemsForRelay,
+                                          refundAmount: refundAmount,
+                                        );
+
+                                        final emailSent = relayResult['email_sent'] == true;
+                                        final creditNote = relayResult['credit_note'] as String?;
+                                        final warning = relayResult['warning'] as String?;
+
+                                        if (creditNote != null) {
+                                          resultMsg = '$resultMsg\nFactura rectificativa: $creditNote';
+                                        }
+                                        if (emailSent) {
+                                          resultMsg = '$resultMsg\nEmail enviado al cliente';
+                                        } else if (warning != null) {
+                                          resultMsg = '$resultMsg\nAviso: $warning';
+                                        }
+                                      } catch (e) {
+                                        debugPrint('Error en factura rectificativa/email parcial: $e');
+                                        resultMsg = '$resultMsg\nFactura rectificativa/email no procesados';
+                                      }
+                                    }
                                   }
 
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                   }
-                                  ref.invalidate(adminOrdersProvider(_selectedStatus));
+                                  _invalidateAllOrders();
                                   if (mounted) {
-                                    final msg = result?['message'] ?? 'Devolución procesada';
                                     ScaffoldMessenger.of(this.context).showSnackBar(
                                       SnackBar(
-                                        content: Text('✅ $msg — Email enviado al cliente'),
+                                        content: Text(resultMsg),
                                         backgroundColor: Colors.green,
                                       ),
                                     );
@@ -1229,6 +1452,31 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                       ),
                     ),
 
+                    // Botón rechazar devolución (solo cuando el cliente la solicitó)
+                    // Botón rechazar devolución (siempre visible, items vienen del cliente)
+                    ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: isProcessing
+                              ? null
+                              : () {
+                                  Navigator.pop(context);
+                                  _showRejectReturnDialog(order);
+                                },
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
+                          label: const Text('Rechazar devolucion'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red[400],
+                            side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -1238,6 +1486,191 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         },
       ),
     );
+  }
+
+  /// Diálogo para rechazar una devolución solicitada por el cliente
+  void _showRejectReturnDialog(Map<String, dynamic> order) {
+    final reasonCtrl = TextEditingController();
+    bool isRejecting = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Row(
+            children: [
+              Icon(Icons.cancel_outlined, color: Colors.red, size: 22),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Rechazar devolucion',
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pedido #${order['order_number'] ?? order['id']?.toString().substring(0, 8)}',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Cliente: ${order['customer_name'] ?? order['customer_email'] ?? 'N/A'}',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                // Motivo del cliente (si existe)
+                if (order['return_reason'] != null && (order['return_reason'] as String).isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Solicitud del cliente:', style: TextStyle(color: Colors.amber[300], fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Text(
+                          order['return_reason'] as String,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          maxLines: 6,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                const Text(
+                  'Motivo del rechazo (se enviara por email al cliente):',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: reasonCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Explica el motivo del rechazo...',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
+                    filled: true,
+                    fillColor: const Color(0xFF12121A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isRejecting ? null : () => Navigator.pop(ctx),
+              child: Text('Cancelar', style: TextStyle(color: Colors.grey[500])),
+            ),
+            ElevatedButton.icon(
+              onPressed: isRejecting
+                  ? null
+                  : () async {
+                      if (reasonCtrl.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Debes indicar un motivo'), backgroundColor: Colors.orange),
+                        );
+                        return;
+                      }
+                      setDialogState(() => isRejecting = true);
+                      await _rejectReturn(order, reasonCtrl.text.trim());
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+              icon: isRejecting
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.cancel_outlined, size: 16),
+              label: Text(isRejecting ? 'Rechazando...' : 'Rechazar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Ejecuta el rechazo: actualiza estado a delivered + envía email de rechazo
+  Future<void> _rejectReturn(Map<String, dynamic> order, String reason) async {
+    try {
+      final admin = ref.read(adminSessionProvider);
+      final supabase = ref.read(supabaseProvider);
+      final orderId = order['id'];
+
+      // 1. Actualizar estado a 'return_rejected' via RPC
+      await supabase.rpc(
+        'admin_update_order_status',
+        params: {
+          'p_admin_email': admin?.email ?? '',
+          'p_order_id': orderId.toString(),
+          'p_new_status': 'return_rejected',
+        },
+      );
+
+      // 2. Enviar email de rechazo al cliente
+      bool emailSent = false;
+      String emailWarning = '';
+      try {
+        final emailResult = await FashionStoreApiService.rejectReturn(
+          orderId: orderId.toString(),
+          adminEmail: admin?.email ?? '',
+          reason: reason,
+          customerEmail: order['customer_email'] as String?,
+          customerName: order['customer_name'] as String?,
+          orderNumber: order['order_number'] as int?,
+          returnReason: order['return_reason'] as String?,
+        );
+        debugPrint('Resultado email rechazo: $emailResult');
+        if (emailResult['success'] == true && emailResult['warning'] == null) {
+          emailSent = true;
+        } else if (emailResult['warning'] != null) {
+          emailWarning = emailResult['warning'].toString();
+          debugPrint('Warning email rechazo: $emailWarning');
+        } else if (emailResult['error'] != null) {
+          emailWarning = emailResult['error'].toString();
+          debugPrint('Error email rechazo: $emailWarning');
+        }
+      } catch (e) {
+        emailWarning = e.toString();
+        debugPrint('Error enviando email de rechazo: $e');
+      }
+
+      _invalidateAllOrders();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(emailSent
+                ? 'Devolucion rechazada - Email enviado al cliente'
+                : 'Devolucion rechazada - Email NO enviado${emailWarning.isNotEmpty ? ': $emailWarning' : ''}'),
+            backgroundColor: emailSent ? Colors.green : Colors.orange,
+            duration: Duration(seconds: emailSent ? 3 : 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _showOrderDetails(Map<String, dynamic> order) {
@@ -1254,12 +1687,17 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           Navigator.of(context).pop();
           _updateOrderStatus(orderId, status);
         },
+        onRejectReturn: () {
+          Navigator.of(context).pop();
+          _showRejectReturnDialog(order);
+        },
         onUpdateShipping: ({
           required dynamic orderId,
           required String? shippingCarrier,
           required String? trackingNumber,
           required String? trackingUrl,
           required bool markAsShipped,
+          String? newStatus,
         }) {
           Navigator.of(context).pop();
           _updateOrderShipping(
@@ -1268,6 +1706,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             trackingNumber: trackingNumber,
             trackingUrl: trackingUrl,
             markAsShipped: markAsShipped,
+            newStatus: newStatus,
           );
         },
         getStatusInfo: _getStatusInfo,
@@ -1280,18 +1719,21 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 class _OrderDetailSheet extends StatefulWidget {
   final Map<String, dynamic> order;
   final void Function(dynamic orderId, String status) onUpdateStatus;
+  final VoidCallback onRejectReturn;
   final void Function({
     required dynamic orderId,
     required String? shippingCarrier,
     required String? trackingNumber,
     required String? trackingUrl,
     required bool markAsShipped,
+    String? newStatus,
   }) onUpdateShipping;
   final Map<String, dynamic> Function(String) getStatusInfo;
 
   const _OrderDetailSheet({
     required this.order,
     required this.onUpdateStatus,
+    required this.onRejectReturn,
     required this.onUpdateShipping,
     required this.getStatusInfo,
   });
@@ -1304,12 +1746,14 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
   late String? _selectedCarrier;
   late final TextEditingController _trackingController;
   late final TextEditingController _trackingUrlController;
+  late String _selectedStatus;
   bool _markAsShipped = false;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedStatus = widget.order['status'] as String? ?? 'pending';
     _selectedCarrier = widget.order['shipping_carrier'] as String?;
     _trackingController = TextEditingController(
       text: widget.order['tracking_number'] as String? ?? '',
@@ -1347,7 +1791,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       expand: false,
       builder: (context, scrollController) {
         final items = widget.order['items'] as List? ?? [];
-        final status = widget.order['status'] as String? ?? 'pending';
+        final status = _selectedStatus;
         final statusInfo = widget.getStatusInfo(status);
         final hasTracking = (widget.order['tracking_number'] as String?)?.isNotEmpty == true;
 
@@ -1471,7 +1915,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     final steps = ['pending', 'paid', 'shipped', 'delivered'];
     final currentIndex = steps.indexOf(status);
     final isCancelled = status == 'cancelled';
-    final isReturnRelated = status == 'return_requested' || status == 'returned' || status == 'partial_return';
+    final isReturnRelated = status == 'return_requested' || status == 'returned' || status == 'partial_return' || status == 'return_rejected';
 
     if (isCancelled) {
       return Container(
@@ -1568,7 +2012,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
   /// Sección para cambiar el estado del pedido
   Widget _buildStatusSection(String currentStatus) {
-    final statuses = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returned', 'partial_return'];
+    final statuses = ['pending', 'paid', 'shipped', 'delivered', 'cancelled', 'return_requested', 'returned', 'partial_return', 'return_rejected'];
     final labels = {
       'pending': 'Pendiente',
       'paid': 'Pagado',
@@ -1578,7 +2022,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
       'return_requested': 'Devolución solicitada',
       'returned': 'Devuelto',
       'partial_return': 'Devolución parcial',
+      'return_rejected': 'Devolución rechazada',
     };
+
+    // Estados destructivos que requieren confirmación inmediata (generan reembolsos)
+    const destructiveStatuses = {'cancelled', 'returned'};
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1591,6 +2039,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionTitle('Estado del pedido'),
+          const SizedBox(height: 8),
+          Text(
+            'El cambio de estado se guardará al pulsar el botón "Guardar"',
+            style: TextStyle(color: Colors.grey[600], fontSize: 11),
+          ),
           const SizedBox(height: 12),
 
           // ── Botones rápidos para gestionar devolución solicitada ──────────
@@ -1620,11 +2073,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => _showConfirmDialog(
-                            title: 'Rechazar devolución',
-                            message: '¿Rechazar la solicitud de devolución? El pedido volverá a estado "Entregado".',
-                            onConfirm: () => widget.onUpdateStatus(widget.order['id'], 'delivered'),
-                          ),
+                          onPressed: () => widget.onRejectReturn(),
                           icon: Icon(Icons.close, size: 15, color: Colors.red[400]),
                           label: Text('Rechazar', style: TextStyle(color: Colors.red[400], fontSize: 13)),
                           style: OutlinedButton.styleFrom(
@@ -1660,8 +2109,33 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
             const SizedBox(height: 16),
           ],
 
+          // Indicador de cambio pendiente
+          if (_selectedStatus != (widget.order['status'] as String? ?? 'pending')) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.amber, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cambio pendiente: ${labels[_selectedStatus] ?? _selectedStatus}',
+                      style: const TextStyle(color: Colors.amber, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           DropdownButtonFormField<String>(
-            value: currentStatus,
+            value: _selectedStatus,
             dropdownColor: const Color(0xFF1A1A2E),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
@@ -1684,14 +2158,20 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               );
             }).toList(),
             onChanged: (newStatus) {
-              if (newStatus != null && newStatus != currentStatus) {
-                _showConfirmDialog(
-                  title: 'Cambiar estado',
-                  message: '¿Cambiar estado a "${labels[newStatus]}"?',
-                  onConfirm: () {
-                    widget.onUpdateStatus(widget.order['id'], newStatus);
-                  },
-                );
+              if (newStatus != null && newStatus != _selectedStatus) {
+                // Estados destructivos: confirmación inmediata (generan reembolsos/cancelaciones)
+                if (destructiveStatuses.contains(newStatus)) {
+                  _showConfirmDialog(
+                    title: 'Cambiar estado',
+                    message: '¿Cambiar estado a "${labels[newStatus]}"? Esta acción se ejecutará inmediatamente.',
+                    onConfirm: () {
+                      widget.onUpdateStatus(widget.order['id'], newStatus);
+                    },
+                  );
+                } else {
+                  // Cambio normal: solo actualizar estado local
+                  setState(() => _selectedStatus = newStatus);
+                }
               }
             },
           ),
@@ -1850,6 +2330,8 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                   ? null
                   : () {
                       setState(() => _isSaving = true);
+                      final originalStatus = widget.order['status'] as String? ?? 'pending';
+                      final statusChanged = _selectedStatus != originalStatus;
                       widget.onUpdateShipping(
                         orderId: widget.order['id'],
                         shippingCarrier: _selectedCarrier,
@@ -1860,6 +2342,7 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                             ? null
                             : _trackingUrlController.text.trim(),
                         markAsShipped: _markAsShipped,
+                        newStatus: statusChanged ? _selectedStatus : null,
                       );
                     },
               icon: _isSaving
@@ -1869,15 +2352,25 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                     )
                   : Icon(
-                      _markAsShipped ? Icons.local_shipping : Icons.save,
+                      _markAsShipped || _selectedStatus != (widget.order['status'] as String? ?? 'pending')
+                          ? Icons.local_shipping
+                          : Icons.save,
                       size: 18,
                     ),
               label: Text(
-                _markAsShipped ? 'Guardar y marcar como enviado' : 'Guardar datos de envío',
+                _markAsShipped
+                    ? 'Guardar y marcar como enviado'
+                    : _selectedStatus != (widget.order['status'] as String? ?? 'pending')
+                        ? 'Guardar cambios'
+                        : 'Guardar datos de envío',
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _markAsShipped ? Colors.blue : AppColors.neonCyan,
-                foregroundColor: _markAsShipped ? Colors.white : Colors.black,
+                backgroundColor: _markAsShipped || _selectedStatus != (widget.order['status'] as String? ?? 'pending')
+                    ? Colors.blue
+                    : AppColors.neonCyan,
+                foregroundColor: _markAsShipped || _selectedStatus != (widget.order['status'] as String? ?? 'pending')
+                    ? Colors.white
+                    : Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),

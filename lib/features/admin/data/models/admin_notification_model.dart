@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 // Modelo para notificaciones del admin
 class AdminNotification {
   final String id;
@@ -49,16 +51,16 @@ enum AdminNotificationType {
 
 // Extensión para obtener datos visuales de cada tipo
 extension AdminNotificationTypeExtension on AdminNotificationType {
-  String get iconEmoji {
+  IconData get iconData {
     switch (this) {
       case AdminNotificationType.newOrder:
-        return '🛒';
+        return Icons.shopping_cart_outlined;
       case AdminNotificationType.lowStock:
-        return '⚠️';
+        return Icons.warning_amber_outlined;
       case AdminNotificationType.outOfStock:
-        return '🚫';
+        return Icons.remove_shopping_cart_outlined;
       case AdminNotificationType.pendingOrders:
-        return '📦';
+        return Icons.inventory_2_outlined;
     }
   }
 

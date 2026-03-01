@@ -13,6 +13,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
   final bool isFavorite;
+  final String heroTagPrefix;
 
   const ProductCard({
     super.key,
@@ -20,12 +21,16 @@ class ProductCard extends StatelessWidget {
     this.onTap,
     this.onFavorite,
     this.isFavorite = false,
+    this.heroTagPrefix = 'product-hero',
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap ?? () => context.push('/producto/${product.slug}'),
+      onTap: onTap ?? () {
+        final heroTag = '$heroTagPrefix-${product.slug}';
+        context.push('/producto/${product.slug}', extra: heroTag);
+      },
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -56,7 +61,7 @@ class ProductCard extends StatelessWidget {
                       top: Radius.circular(12),
                     ),
                     child: Hero(
-                      tag: 'product-hero-${product.slug}',
+                      tag: '$heroTagPrefix-${product.slug}',
                       child: CachedNetworkImage(
                         imageUrl: product.thumbnailImage,
                         fit: BoxFit.cover,

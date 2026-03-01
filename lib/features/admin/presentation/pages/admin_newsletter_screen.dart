@@ -14,15 +14,52 @@ import '../widgets/admin_notification_button.dart';
 // PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Lista de suscriptores al newsletter
+/// Lista de suscriptores al newsletter (combina tabla + clientes como FashionStore)
 final adminSubscribersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final supabase = Supabase.instance.client;
-  final response = await supabase
+
+  // 1. Subscribers from dedicated table
+  final tableResponse = await supabase
       .from('newsletter_subscribers')
       .select()
       .order('subscribed_at', ascending: false);
-  return List<Map<String, dynamic>>.from(response);
+  final tableSubs = List<Map<String, dynamic>>.from(tableResponse);
+
+  // 2. Customers with newsletter = true
+  final customerResponse = await supabase
+      .from('customers')
+      .select('id, email, full_name, newsletter, created_at')
+      .eq('newsletter', true);
+  final customerSubs = List<Map<String, dynamic>>.from(customerResponse);
+
+  // Track emails to avoid duplicates
+  final seenEmails = <String>{};
+  final combined = <Map<String, dynamic>>[];
+
+  // Add table subscribers first
+  for (final sub in tableSubs) {
+    final email = (sub['email'] as String?)?.toLowerCase() ?? '';
+    if (email.isNotEmpty && seenEmails.add(email)) {
+      combined.add({...sub, '_source': 'popup'});
+    }
+  }
+
+  // Add customer subscribers
+  for (final cust in customerSubs) {
+    final email = (cust['email'] as String?)?.toLowerCase() ?? '';
+    if (email.isNotEmpty && seenEmails.add(email)) {
+      combined.add({
+        'email': cust['email'],
+        'name': cust['full_name'],
+        'is_active': true,
+        'subscribed_at': cust['created_at'],
+        '_source': 'cliente',
+      });
+    }
+  }
+
+  return combined;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -131,6 +168,19 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
   bool _isSending = false;
   bool _showAdvanced = false;
 
+  // Predefined URL destinations (like FashionStore)
+  static const _urlDestinations = <String, String>{
+    '/productos': 'Todos los productos',
+    '/ofertas': 'Ofertas y descuentos',
+    '/categoria/camisas': 'Camisas',
+    '/categoria/pantalones': 'Pantalones',
+    '/categoria/chaquetas': 'Chaquetas',
+    '/categoria/vestidos': 'Vestidos',
+    '/categoria/accesorios': 'Accesorios',
+    '/': 'Inicio',
+  };
+  String? _selectedUrlKey = '/productos';
+
   @override
   void dispose() {
     _subjectCtrl.dispose();
@@ -197,9 +247,12 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
         buttonText: _buttonTextCtrl.text.trim().isNotEmpty
             ? _buttonTextCtrl.text.trim()
             : null,
-        buttonUrl: _buttonUrlCtrl.text.trim().isNotEmpty
-            ? _buttonUrlCtrl.text.trim()
-            : null,
+        buttonUrl: _selectedUrlKey != null
+            ? _selectedUrlKey!
+            : (_buttonUrlCtrl.text.trim().isNotEmpty
+                ? _buttonUrlCtrl.text.trim()
+                : null),
+        adminEmail: ref.read(adminSessionProvider)?.email,
       );
 
       if (!mounted) return;
@@ -240,6 +293,9 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
 
   @override
   Widget build(BuildContext context) {
+    final subscribersAsync = ref.watch(adminSubscribersProvider);
+    final subscriberCount = subscribersAsync.valueOrNull?.length ?? 0;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Form(
@@ -247,6 +303,54 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Subscriber count info (like FashionStore)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.check_circle_outline, color: Colors.green[400], size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Suscriptores del Newsletter',
+                          style: TextStyle(
+                            color: Colors.green[300],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$subscriberCount personas recibiran este email',
+                          style: TextStyle(
+                            color: Colors.green[400]?.withValues(alpha: 0.8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
             // Asunto
             _buildLabel('Asunto *'),
             const SizedBox(height: 8),
@@ -297,7 +401,7 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
 
             if (_showAdvanced) ...[
               const SizedBox(height: 20),
-              _buildLabel('Título del header'),
+              _buildLabel('Titulo del header'),
               const SizedBox(height: 8),
               _buildField(
                 controller: _headerTitleCtrl,
@@ -311,47 +415,137 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                 controller: _imageUrlCtrl,
                 hint: 'https://...',
               ),
-              const SizedBox(height: 16),
-
-              _buildLabel('Código promocional'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
-                      controller: _promoCodeCtrl,
-                      hint: 'Ej: SUMMER20',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildField(
-                      controller: _promoDiscountCtrl,
-                      hint: 'Ej: 20% de descuento',
-                    ),
-                  ),
-                ],
+              Text(
+                'Imagen destacada que aparecera en el email',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 11),
               ),
               const SizedBox(height: 16),
 
-              _buildLabel('Botón CTA'),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(
+              // Promo section (styled like FashionStore)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.sell_outlined, size: 16, color: Colors.amber[400]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Codigo Promocional (opcional)',
+                          style: TextStyle(
+                            color: Colors.amber[400],
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildField(
+                            controller: _promoCodeCtrl,
+                            hint: 'VERANO20',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildField(
+                            controller: _promoDiscountCtrl,
+                            hint: '20% de descuento',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // CTA Button section (styled like FashionStore)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.neonCyan.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.link, size: 16, color: AppColors.neonCyan),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Boton de Accion',
+                          style: TextStyle(
+                            color: AppColors.neonCyan,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildField(
                       controller: _buttonTextCtrl,
-                      hint: 'Texto del botón',
+                      hint: 'Texto del boton',
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildField(
-                      controller: _buttonUrlCtrl,
-                      hint: 'URL destino',
+                    const SizedBox(height: 10),
+                    // URL Dropdown (like FashionStore)
+                    Text(
+                      'Destino del boton',
+                      style: TextStyle(
+                        color: AppColors.neonCyan.withValues(alpha: 0.8),
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
+                      ),
+                      child: DropdownButtonFormField<String?>(
+                        value: _selectedUrlKey,
+                        dropdownColor: const Color(0xFF1A1A24),
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: InputBorder.none,
+                        ),
+                        icon: Icon(Icons.keyboard_arrow_down, color: Colors.white.withValues(alpha: 0.4)),
+                        items: [
+                          ..._urlDestinations.entries.map((e) => DropdownMenuItem(
+                                value: e.key,
+                                child: Text(e.value, style: const TextStyle(fontSize: 14)),
+                              )),
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('URL personalizada', style: TextStyle(fontSize: 14, color: Colors.white54)),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() => _selectedUrlKey = v),
+                      ),
+                    ),
+                    if (_selectedUrlKey == null) ...[
+                      const SizedBox(height: 10),
+                      _buildField(
+                        controller: _buttonUrlCtrl,
+                        hint: 'https://...',
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
 
@@ -531,6 +725,10 @@ class _SubscribersTab extends ConsumerWidget {
                     final sub = subs[i];
                     final isActive = sub['is_active'] == true;
                     final date = DateTime.tryParse(sub['subscribed_at'] ?? '');
+                    final source = sub['_source'] as String? ??
+                        (sub['source'] as String? ?? '');
+                    final isPopup = source == 'popup' || source == 'subscriber';
+                    final isCliente = source == 'cliente';
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -545,15 +743,24 @@ class _SubscribersTab extends ConsumerWidget {
                       ),
                       child: Row(
                         children: [
-                          // Status dot
+                          // Avatar (first letter like FashionStore)
                           Container(
-                            width: 10,
-                            height: 10,
+                            width: 34,
+                            height: 34,
                             decoration: BoxDecoration(
-                              color: isActive
-                                  ? Colors.green[400]
-                                  : Colors.red[400],
-                              shape: BoxShape.circle,
+                              color: AppColors.neonCyan.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              (sub['name'] as String? ?? sub['email'] as String? ?? '?')
+                                  .substring(0, 1)
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                color: AppColors.neonCyan,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -563,22 +770,50 @@ class _SubscribersTab extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  sub['email'] ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        sub['name'] as String? ?? sub['email'] ?? '',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    if (isPopup || isCliente) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isCliente
+                                              ? AppColors.neonCyan.withValues(alpha: 0.12)
+                                              : AppColors.neonFuchsia.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          isCliente ? 'Cliente' : 'Popup',
+                                          style: TextStyle(
+                                            color: isCliente
+                                                ? AppColors.neonCyan
+                                                : AppColors.neonFuchsia,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   [
-                                    if (sub['name'] != null) sub['name'],
-                                    if (sub['source'] != null)
-                                      'vía ${sub['source']}',
+                                    sub['email'] ?? '',
                                     if (date != null)
-                                      '${date.day}/${date.month}/${date.year}',
+                                      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
                                   ].join(' · '),
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.4),
@@ -589,10 +824,23 @@ class _SubscribersTab extends ConsumerWidget {
                             ),
                           ),
 
+                          // Status indicator
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? Colors.green[400]
+                                  : Colors.red[400],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+
                           // Promo badge
                           if (sub['promo_code_sent'] != null &&
                               sub['promo_code_sent'] == true)
                             Container(
+                              margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(

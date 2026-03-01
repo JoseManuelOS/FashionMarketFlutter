@@ -15,6 +15,7 @@ class ProductGridSection extends ConsumerWidget {
   final VoidCallback? onViewAll;
   final bool showBadge;
   final String? badgeText;
+  final String heroTagPrefix;
 
   const ProductGridSection({
     super.key,
@@ -24,6 +25,7 @@ class ProductGridSection extends ConsumerWidget {
     this.onViewAll,
     this.showBadge = false,
     this.badgeText,
+    this.heroTagPrefix = 'product-hero',
   });
 
   @override
@@ -145,7 +147,10 @@ class ProductGridSection extends ConsumerWidget {
                       ),
                       child: SizedBox(
                         width: 180,
-                        child: ProductCard(product: product),
+                        child: ProductCard(
+                          product: product,
+                          heroTagPrefix: heroTagPrefix,
+                        ),
                       ),
                     );
                   },

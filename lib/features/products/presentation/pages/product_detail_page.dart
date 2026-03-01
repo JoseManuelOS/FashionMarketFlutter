@@ -16,7 +16,7 @@ final productBySlugProvider = FutureProvider.family<ProductModel?, String>((ref,
         *,
         category:categories(*),
         images:product_images(*),
-        variants:product_variants(id, size, stock, sku)
+        variants:product_variants(id, size, stock, sku, color)
       ''')
       .eq('slug', slug)
       .eq('active', true)
@@ -30,10 +30,12 @@ final productBySlugProvider = FutureProvider.family<ProductModel?, String>((ref,
 /// Página envoltorio que carga el producto por slug
 class ProductDetailPage extends ConsumerWidget {
   final String productId; // Aquí usamos el slug, no el ID
+  final String? heroTag;
 
   const ProductDetailPage({
     super.key,
     required this.productId,
+    this.heroTag,
   });
 
   @override
@@ -47,7 +49,10 @@ class ProductDetailPage extends ConsumerWidget {
         if (product == null) {
           return const _NotFoundView();
         }
-        return ProductDetailScreen(product: product);
+        return ProductDetailScreen(
+          product: product,
+          heroTag: heroTag,
+        );
       },
     );
   }

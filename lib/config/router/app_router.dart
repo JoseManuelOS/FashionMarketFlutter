@@ -125,7 +125,8 @@ class AppRouter {
                     name: 'productDetail',
                     builder: (context, state) {
                       final slug = state.pathParameters['slug'] ?? '';
-                      return ProductDetailPage(productId: slug);
+                      final heroTag = state.extra as String?;
+                      return ProductDetailPage(productId: slug, heroTag: heroTag);
                     },
                   ),
                 ],
@@ -339,7 +340,8 @@ class AppRouter {
         name: 'productDetailGlobal',
         builder: (context, state) {
           final slug = state.pathParameters['slug'] ?? '';
-          return ProductDetailPage(productId: slug);
+          final heroTag = state.extra as String?;
+          return ProductDetailPage(productId: slug, heroTag: heroTag);
         },
       ),
     ],
