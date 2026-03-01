@@ -1,69 +1,156 @@
 -- =============================================
--- FIX: Políticas RLS de customers que causan
+-- FIX COMPLETO: Políticas RLS que causan
 -- "permission denied for table users" (error 42501)
 -- =============================================
 -- EJECUTAR EN: Supabase SQL Editor
--- 
--- PROBLEMA: La política "customers_admin_all" hace SELECT en auth.users,
--- pero los usuarios normales no tienen permiso para acceder a auth.users.
--- Esto causa un error en cascada cuando:
---   1. orders_select_own → sub-query en customers → customers_admin_all → auth.users → ERROR
---   2. Cualquier consulta que toque la tabla customers indirectamente
+--
+-- ESTRATEGIA: Eliminar TODAS las políticas de las tablas afectadas
+-- usando DO $$ ... $$ para borrar por nombre dinámicamente,
+-- luego recrear solo las políticas seguras (sin auth.users).
 -- =============================================
 
--- 1. Eliminar la política problemática
-DROP POLICY IF EXISTS "customers_admin_all" ON customers;
+-- =============================================
+-- PASO 1: Eliminar TODAS las políticas existentes
+-- en las 4 tablas de golpe (sin importar el nombre)
+-- =============================================
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT policyname, tablename
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename IN ('customers', 'customer_addresses', 'orders', 'order_items')
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', r.policyname, r.tablename);
+  END LOOP;
+END $$;
 
--- 2. Recrear políticas seguras para customers
-DROP POLICY IF EXISTS "customers_own_profile_select" ON customers;
-CREATE POLICY "customers_own_profile_select"
+-- =============================================
+-- PASO 2: Asegurar RLS habilitado
+-- =============================================
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_addresses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+
+-- =============================================
+-- PASO 3: Recrear políticas SEGURAS (sin auth.users)
+-- =============================================
+
+-- ----- CUSTOMERS -----
+CREATE POLICY "customers_select_own"
   ON customers FOR SELECT
   TO authenticated
-  USING (auth.uid() = id);
+  USING (
+    auth.uid() = id
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  );
 
-DROP POLICY IF EXISTS "customers_own_profile_update" ON customers;
-CREATE POLICY "customers_own_profile_update"
+CREATE POLICY "customers_update_own"
   ON customers FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- 3. Eliminar la política de admin en customer_addresses (mismo problema)
-DROP POLICY IF EXISTS "customer_addresses_admin_all" ON customer_addresses;
+CREATE POLICY "customers_insert_own"
+  ON customers FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
 
--- 4. Recrear políticas seguras para customer_addresses
-DROP POLICY IF EXISTS "customer_addresses_own_select" ON customer_addresses;
-CREATE POLICY "customer_addresses_own_select"
+-- ----- CUSTOMER_ADDRESSES -----
+CREATE POLICY "customer_addresses_select_own"
   ON customer_addresses FOR SELECT
   TO authenticated
   USING (auth.uid() = customer_id);
 
-DROP POLICY IF EXISTS "customer_addresses_own_insert" ON customer_addresses;
-CREATE POLICY "customer_addresses_own_insert"
+CREATE POLICY "customer_addresses_insert_own"
   ON customer_addresses FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = customer_id);
 
-DROP POLICY IF EXISTS "customer_addresses_own_update" ON customer_addresses;
-CREATE POLICY "customer_addresses_own_update"
+CREATE POLICY "customer_addresses_update_own"
   ON customer_addresses FOR UPDATE
   TO authenticated
   USING (auth.uid() = customer_id)
   WITH CHECK (auth.uid() = customer_id);
 
-DROP POLICY IF EXISTS "customer_addresses_own_delete" ON customer_addresses;
-CREATE POLICY "customer_addresses_own_delete"
+CREATE POLICY "customer_addresses_delete_own"
   ON customer_addresses FOR DELETE
   TO authenticated
   USING (auth.uid() = customer_id);
 
+-- ----- ORDERS -----
+-- Clientes ven sus pedidos por customer_id o email
+-- Admins ven todos (via JWT, sin tocar auth.users)
+CREATE POLICY "orders_select_own"
+  ON orders FOR SELECT
+  TO authenticated
+  USING (
+    customer_id = auth.uid()
+    OR customer_email = (auth.jwt() ->> 'email')
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  );
+
+CREATE POLICY "orders_insert_auth"
+  ON orders FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "orders_insert_anon"
+  ON orders FOR INSERT
+  TO anon
+  WITH CHECK (
+    total_price >= 0
+    AND status IN ('pending', 'paid')
+  );
+
+CREATE POLICY "orders_update_own"
+  ON orders FOR UPDATE
+  TO authenticated
+  USING (
+    customer_id = auth.uid()
+    OR customer_email = (auth.jwt() ->> 'email')
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+  )
+  WITH CHECK (true);
+
+-- ----- ORDER_ITEMS -----
+-- Sub-query a orders sin usar auth.users
+CREATE POLICY "order_items_select_own"
+  ON order_items FOR SELECT
+  TO authenticated
+  USING (
+    order_id IN (
+      SELECT id FROM orders
+      WHERE customer_id = auth.uid()
+         OR customer_email = (auth.jwt() ->> 'email')
+         OR (auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'
+    )
+  );
+
+CREATE POLICY "order_items_insert_auth"
+  ON order_items FOR INSERT
+  TO authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "order_items_insert_anon"
+  ON order_items FOR INSERT
+  TO anon
+  WITH CHECK (
+    quantity > 0
+    AND price_at_purchase >= 0
+  );
+
 -- =============================================
 -- ✅ VERIFICACIÓN
 -- =============================================
-SELECT '✅ Política customers_admin_all eliminada' as status;
+SELECT '✅ Todas las políticas recreadas sin auth.users' AS status;
 
--- Verificar políticas activas
-SELECT schemaname, tablename, policyname 
-FROM pg_policies 
-WHERE tablename IN ('customers', 'customer_addresses', 'orders')
+-- Ver políticas activas (verificar que ninguna mencione auth.users)
+SELECT tablename, policyname, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN ('customers', 'customer_addresses', 'orders', 'order_items')
 ORDER BY tablename, policyname;

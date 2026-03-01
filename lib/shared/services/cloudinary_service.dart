@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -24,7 +26,39 @@ class CloudinaryService {
   static const String folderCarousel = 'carousel';
   static const String folderCategories = 'categories';
 
-  /// Sube una imagen a Cloudinary desde un archivo [XFile]
+  /// Comprime una imagen antes de subirla.
+  /// En web, solo lee bytes directamente (flutter_image_compress no soporta web nativo).
+  /// En móvil/escritorio, comprime con calidad 80 y ancho máximo 1200px.
+  static Future<Uint8List> _compressImage(XFile imageFile) async {
+    final originalBytes = await imageFile.readAsBytes();
+
+    if (kIsWeb) {
+      // On web, flutter_image_compress has limited support.
+      // Return original bytes — Cloudinary will optimize server-side.
+      return originalBytes;
+    }
+
+    try {
+      final compressed = await FlutterImageCompress.compressWithList(
+        originalBytes,
+        minWidth: 1200,
+        minHeight: 1200,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
+      debugPrint(
+        '🗜️ Imagen comprimida: ${originalBytes.length} → ${compressed.length} bytes '
+        '(${(compressed.length / originalBytes.length * 100).toStringAsFixed(0)}%)',
+      );
+      return compressed;
+    } catch (e) {
+      debugPrint('⚠️ Compresión falló, usando imagen original: $e');
+      return originalBytes;
+    }
+  }
+
+  /// Sube una imagen a Cloudinary desde un archivo [XFile].
+  /// La imagen se comprime automáticamente antes de subirla (móvil/escritorio).
   ///
   /// [imageFile] — Archivo de imagen (desde image_picker)
   /// [folder] — Carpeta en Cloudinary (products, carousel, categories)
@@ -37,6 +71,9 @@ class CloudinaryService {
     String? publicId,
   }) async {
     try {
+      // Comprimir imagen antes de subir
+      final compressedBytes = await _compressImage(imageFile);
+
       final uri = Uri.parse(_uploadUrl);
       final request = http.MultipartRequest('POST', uri);
 
@@ -48,21 +85,14 @@ class CloudinaryService {
         request.fields['public_id'] = publicId;
       }
 
-      // Adjuntar archivo
-      if (kIsWeb) {
-        final bytes = await imageFile.readAsBytes();
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'file',
-            bytes,
-            filename: imageFile.name,
-          ),
-        );
-      } else {
-        request.files.add(
-          await http.MultipartFile.fromPath('file', imageFile.path),
-        );
-      }
+      // Adjuntar archivo comprimido
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          compressedBytes,
+          filename: imageFile.name,
+        ),
+      );
 
       // Enviar
       final streamedResponse = await request.send();

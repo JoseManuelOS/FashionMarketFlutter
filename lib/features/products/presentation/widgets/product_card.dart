@@ -50,20 +50,23 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Imagen con cache
+                  // Imagen con cache + Hero animation
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: CachedNetworkImage(
-                      imageUrl: product.thumbnailImage,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Shimmer.fromColors(
-                        baseColor: AppColors.dark400,
-                        highlightColor: AppColors.dark300,
-                        child: Container(color: AppColors.dark400),
+                    child: Hero(
+                      tag: 'product-hero-${product.slug}',
+                      child: CachedNetworkImage(
+                        imageUrl: product.thumbnailImage,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Shimmer.fromColors(
+                          baseColor: AppColors.dark400,
+                          highlightColor: AppColors.dark300,
+                          child: Container(color: AppColors.dark400),
+                        ),
+                        errorWidget: (context, url, error) => _buildPlaceholder(),
                       ),
-                      errorWidget: (context, url, error) => _buildPlaceholder(),
                     ),
                   ),
 

@@ -21,6 +21,7 @@ mixin _$ProductImageModel {
   String get imageUrl => throw _privateConstructorUsedError;
   int get sortOrder => throw _privateConstructorUsedError;
   String? get color => throw _privateConstructorUsedError;
+  String? get colorHex => throw _privateConstructorUsedError;
   String? get altText => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
@@ -43,6 +44,7 @@ abstract class $ProductImageModelCopyWith<$Res> {
       String imageUrl,
       int sortOrder,
       String? color,
+      String? colorHex,
       String? altText,
       DateTime? createdAt});
 }
@@ -67,6 +69,7 @@ class _$ProductImageModelCopyWithImpl<$Res, $Val extends ProductImageModel>
     Object? imageUrl = null,
     Object? sortOrder = null,
     Object? color = freezed,
+    Object? colorHex = freezed,
     Object? altText = freezed,
     Object? createdAt = freezed,
   }) {
@@ -90,6 +93,10 @@ class _$ProductImageModelCopyWithImpl<$Res, $Val extends ProductImageModel>
       color: freezed == color
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
+              as String?,
+      colorHex: freezed == colorHex
+          ? _value.colorHex
+          : colorHex // ignore: cast_nullable_to_non_nullable
               as String?,
       altText: freezed == altText
           ? _value.altText
@@ -117,6 +124,7 @@ abstract class _$$ProductImageModelImplCopyWith<$Res>
       String imageUrl,
       int sortOrder,
       String? color,
+      String? colorHex,
       String? altText,
       DateTime? createdAt});
 }
@@ -139,6 +147,7 @@ class __$$ProductImageModelImplCopyWithImpl<$Res>
     Object? imageUrl = null,
     Object? sortOrder = null,
     Object? color = freezed,
+    Object? colorHex = freezed,
     Object? altText = freezed,
     Object? createdAt = freezed,
   }) {
@@ -163,6 +172,10 @@ class __$$ProductImageModelImplCopyWithImpl<$Res>
           ? _value.color
           : color // ignore: cast_nullable_to_non_nullable
               as String?,
+      colorHex: freezed == colorHex
+          ? _value.colorHex
+          : colorHex // ignore: cast_nullable_to_non_nullable
+              as String?,
       altText: freezed == altText
           ? _value.altText
           : altText // ignore: cast_nullable_to_non_nullable
@@ -184,6 +197,7 @@ class _$ProductImageModelImpl extends _ProductImageModel {
       required this.imageUrl,
       this.sortOrder = 0,
       this.color,
+      this.colorHex,
       this.altText,
       this.createdAt})
       : super._();
@@ -200,13 +214,15 @@ class _$ProductImageModelImpl extends _ProductImageModel {
   @override
   final String? color;
   @override
+  final String? colorHex;
+  @override
   final String? altText;
   @override
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'ProductImageModel(id: $id, productId: $productId, imageUrl: $imageUrl, sortOrder: $sortOrder, color: $color, altText: $altText, createdAt: $createdAt)';
+    return 'ProductImageModel(id: $id, productId: $productId, imageUrl: $imageUrl, sortOrder: $sortOrder, color: $color, colorHex: $colorHex, altText: $altText, createdAt: $createdAt)';
   }
 
   @override
@@ -222,6 +238,8 @@ class _$ProductImageModelImpl extends _ProductImageModel {
             (identical(other.sortOrder, sortOrder) ||
                 other.sortOrder == sortOrder) &&
             (identical(other.color, color) || other.color == color) &&
+            (identical(other.colorHex, colorHex) ||
+                other.colorHex == colorHex) &&
             (identical(other.altText, altText) || other.altText == altText) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
@@ -229,7 +247,7 @@ class _$ProductImageModelImpl extends _ProductImageModel {
 
   @override
   int get hashCode => Object.hash(runtimeType, id, productId, imageUrl,
-      sortOrder, color, altText, createdAt);
+      sortOrder, color, colorHex, altText, createdAt);
 
   /// Create a copy of ProductImageModel
   /// with the given fields replaced by the non-null parameter values.
@@ -248,6 +266,7 @@ abstract class _ProductImageModel extends ProductImageModel {
       required final String imageUrl,
       final int sortOrder,
       final String? color,
+      final String? colorHex,
       final String? altText,
       final DateTime? createdAt}) = _$ProductImageModelImpl;
   const _ProductImageModel._() : super._();
@@ -262,6 +281,8 @@ abstract class _ProductImageModel extends ProductImageModel {
   int get sortOrder;
   @override
   String? get color;
+  @override
+  String? get colorHex;
   @override
   String? get altText;
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../config/router/app_router.dart';
 import '../../../../config/theme/app_colors.dart';
@@ -17,9 +18,28 @@ class _SplashPageAnimatedState extends State<SplashPageAnimated>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
 
+  /// Bandera estática para mostrar la animación solo una vez por sesión de app
+  static bool _hasShownSplash = false;
+
   @override
   void initState() {
     super.initState();
+
+    // Si el usuario ya tiene sesión activa o ya se mostró el splash, ir directo al home
+    final hasSession = Supabase.instance.client.auth.currentSession != null;
+    if (hasSession || _hasShownSplash) {
+      _hasShownSplash = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go(AppRoutes.home);
+      });
+      _animationController = AnimationController(
+        vsync: this,
+        duration: Duration.zero,
+      );
+      return;
+    }
+
+    _hasShownSplash = true;
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3500),

@@ -348,12 +348,34 @@ class _CartItemTile extends ConsumerWidget {
 
                 const SizedBox(height: 4),
 
-                Text(
-                  'Talla: ${item.size}',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 13,
-                  ),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.glassLight,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Talla: ${item.size}',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    if (item.color != null && item.color!.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.glassLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.color!,
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                  ],
                 ),
 
                 const SizedBox(height: 8),
@@ -393,7 +415,7 @@ class _CartItemTile extends ConsumerWidget {
                       onPressed: () {
                         ref
                             .read(cartNotifierProvider.notifier)
-                            .decrementQuantity(item.productId, item.size);
+                            .decrementQuantity(item.productId, item.size, item.color);
                       },
                     ),
                     Padding(
@@ -412,7 +434,7 @@ class _CartItemTile extends ConsumerWidget {
                       onPressed: () {
                         ref
                             .read(cartNotifierProvider.notifier)
-                            .incrementQuantity(item.productId, item.size);
+                            .incrementQuantity(item.productId, item.size, item.color);
                       },
                     ),
                     const Spacer(),
@@ -421,7 +443,7 @@ class _CartItemTile extends ConsumerWidget {
                       onPressed: () {
                         ref
                             .read(cartNotifierProvider.notifier)
-                            .removeItem(item.productId, item.size);
+                            .removeItem(item.productId, item.size, item.color);
                       },
                       icon: const Icon(
                         Icons.delete_outline,

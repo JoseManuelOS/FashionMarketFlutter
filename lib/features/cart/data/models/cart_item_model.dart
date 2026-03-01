@@ -20,6 +20,7 @@ class CartItemModel with _$CartItemModel {
     @HiveField(7) required String imageUrl,
     @HiveField(8) double? originalPrice,
     @HiveField(9) @Default(0) int discountPercent,
+    @HiveField(10) String? color,
   }) = _CartItemModel;
 
   const CartItemModel._();
@@ -27,8 +28,8 @@ class CartItemModel with _$CartItemModel {
   factory CartItemModel.fromJson(Map<String, dynamic> json) =>
       _$CartItemModelFromJson(json);
 
-  /// ID único del item (productId + size)
-  String get uniqueId => '${productId}_$size';
+  /// ID único del item (productId + size + color)
+  String get uniqueId => '${productId}_${size}_${color ?? ''}';
 
   /// Subtotal del item (precio * cantidad)
   double get subtotal => price * quantity;

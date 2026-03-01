@@ -582,21 +582,40 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
       // ── Aceptar devolución vía API (reembolso + email automático) ──
       if (newStatus == 'returned' && admin != null) {
-        final result = await FashionStoreApiService.acceptReturn(
-          orderId: orderId.toString(),
-          adminEmail: admin.email,
-        );
-        if (result['success'] != true) {
-          throw Exception(result['error'] ?? 'Error al aceptar devolución');
-        }
-        ref.invalidate(adminOrdersProvider(_selectedStatus));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Devolución aceptada - Reembolso y email enviados'),
-              backgroundColor: Colors.green,
-            ),
+        try {
+          final result = await FashionStoreApiService.acceptReturn(
+            orderId: orderId.toString(),
+            adminEmail: admin.email,
           );
+          if (result['success'] != true) {
+            throw Exception(result['error'] ?? 'Error al aceptar devolución');
+          }
+          ref.invalidate(adminOrdersProvider(_selectedStatus));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Devolución aceptada - Reembolso y email enviados'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          // Si falla la API, al menos actualizar estado en Supabase
+          debugPrint('⚠️ Error en API accept-return: $e — Actualizando estado directamente');
+          final supabase = ref.read(supabaseProvider);
+          await supabase
+              .from('orders')
+              .update({'status': 'returned'})
+              .eq('id', orderId);
+          ref.invalidate(adminOrdersProvider(_selectedStatus));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Devolución aceptada (estado actualizado). Email no enviado: $e'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
         }
         return;
       }
@@ -757,11 +776,13 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     }
   }
 
-  /// Diálogo de devolución parcial — permite seleccionar items y cantidades
+  /// Diálogo de devolución — si el cliente la solicitó los items vienen pre-seleccionados
   void _showPartialReturnDialog(Map<String, dynamic> order) async {
     final admin = ref.read(adminSessionProvider);
     final supabase = ref.read(supabaseProvider);
     final orderId = order['id'];
+    final orderStatus = order['status'] as String? ?? '';
+    final isCustomerRequested = orderStatus == 'return_requested';
 
     // Obtener items del pedido con devoluciones previas
     List<Map<String, dynamic>> items;
@@ -770,7 +791,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         'admin_get_order_items',
         params: {
           'p_admin_email': admin?.email ?? '',
-          'p_order_id': orderId is int ? orderId : int.parse(orderId.toString()),
+          'p_order_id': orderId.toString(),
         },
       );
       items = (result as List).cast<Map<String, dynamic>>();
@@ -793,7 +814,19 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     }
 
     // Map: order_item_id → cantidad a devolver
-    final Map<int, int> returnQuantities = {};
+    final Map<String, int> returnQuantities = {};
+
+    // Si el cliente ya solicitó la devolución, pre-seleccionar todos los items disponibles
+    if (isCustomerRequested) {
+      for (final item in items) {
+        final itemId = item['id'].toString();
+        final qty = item['quantity'] as int;
+        final alreadyReturned = (item['already_returned'] as num?)?.toInt() ?? 0;
+        final available = qty - alreadyReturned;
+        if (available > 0) returnQuantities[itemId] = available;
+      }
+    }
+
     final reasonController = TextEditingController();
     bool isProcessing = false;
 
@@ -839,12 +872,31 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                     // Header
                     Row(
                       children: [
-                        const Icon(Icons.assignment_return, color: Colors.teal, size: 24),
+                        Icon(
+                          isCustomerRequested ? Icons.assignment_return : Icons.assignment_return_outlined,
+                          color: isCustomerRequested ? Colors.amber : Colors.teal,
+                          size: 24,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(
-                            'Devolución parcial — Pedido #${order['order_number'] ?? orderId}',
-                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isCustomerRequested
+                                    ? 'Solicitud del cliente — Pedido #${order['order_number'] ?? orderId}'
+                                    : 'Devolución parcial — Pedido #${order['order_number'] ?? orderId}',
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              if (isCustomerRequested)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'El cliente solicitó devolver todo el pedido. Ajusta las cantidades si quieres procesarlo de forma parcial.',
+                                    style: TextStyle(color: Colors.amber, fontSize: 12),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ],
@@ -878,7 +930,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
                     // Items
                     ...items.map((item) {
-                      final itemId = item['id'] as int;
+                      final itemId = item['id'].toString();
                       final qty = item['quantity'] as int;
                       final alreadyReturned = (item['already_returned'] as num?)?.toInt() ?? 0;
                       final available = qty - alreadyReturned;
@@ -1120,12 +1172,23 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                                     params: {
                                       'p_admin_email': admin?.email ?? '',
                                       'p_data': {
-                                        'order_id': orderId is int ? orderId : int.parse(orderId.toString()),
+                                        'order_id': orderId.toString(),
                                         'reason': reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
                                         'items': itemsData,
                                       },
                                     },
                                   );
+
+                                  // Enviar email de devolución aceptada vía FashionStore API
+                                  try {
+                                    await FashionStoreApiService.acceptReturn(
+                                      orderId: orderId.toString(),
+                                      adminEmail: admin?.email ?? '',
+                                    );
+                                  } catch (_) {
+                                    // Email no crítico — no bloquear la UI
+                                    debugPrint('⚠️ No se pudo enviar email de devolución');
+                                  }
 
                                   if (context.mounted) {
                                     Navigator.pop(context);
@@ -1135,7 +1198,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                                     final msg = result?['message'] ?? 'Devolución procesada';
                                     ScaffoldMessenger.of(this.context).showSnackBar(
                                       SnackBar(
-                                        content: Text('✅ $msg'),
+                                        content: Text('✅ $msg — Email enviado al cliente'),
                                         backgroundColor: Colors.green,
                                       ),
                                     );

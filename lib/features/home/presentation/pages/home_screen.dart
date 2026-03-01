@@ -10,6 +10,7 @@ import '../../../../config/theme/app_colors.dart';
 import '../../../../shared/widgets/app_drawer.dart';
 import '../../../../shared/widgets/newsletter_popup.dart';
 import '../providers/home_providers.dart';
+import '../providers/realtime_offers_provider.dart';
 import '../widgets/product_grid_section.dart';
 import '../widgets/category_chips.dart';
 
@@ -66,15 +67,21 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
 
-          // Sección: Ofertas
+          // Sección: Ofertas (Realtime + global toggle)
           SliverToBoxAdapter(
-            child: ProductGridSection(
-              title: 'Ofertas',
-              subtitle: 'Descuentos especiales',
-              productsProvider: offerProductsProvider,
-              showBadge: true,
-              badgeText: 'SALE',
-              onViewAll: () => context.push('/ofertas'),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final offersEnabled = ref.watch(offersEnabledProvider).valueOrNull ?? true;
+                if (!offersEnabled) return const SizedBox.shrink();
+                return ProductGridSection(
+                  title: 'Ofertas',
+                  subtitle: 'Descuentos especiales',
+                  productsProvider: realtimeOfferProductsProvider,
+                  showBadge: true,
+                  badgeText: 'SALE',
+                  onViewAll: () => context.push('/ofertas'),
+                );
+              },
             ),
           ),
 

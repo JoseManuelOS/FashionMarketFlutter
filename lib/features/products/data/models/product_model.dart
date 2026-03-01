@@ -22,6 +22,8 @@ class ProductModel with _$ProductModel {
     int? discountPercent,
     @Default(<String>[]) List<String> sizes,
     Map<String, int>? stockBySize,
+    /// Stock por color y talla: { "Rojo": { "M": 5, "L": 3 }, "Azul": { "M": 2 } }
+    Map<String, Map<String, int>>? stockByColorSize,
     @Default(true) bool active,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -35,17 +37,26 @@ class ProductModel with _$ProductModel {
 
   /// Factory con manejo de snake_case desde Supabase
   factory ProductModel.fromJson(Map<String, dynamic> json) {
-    // Construir stockBySize: prioridad a product_variants, fallback a stock_by_size JSON
+    // Construir stockBySize y stockByColorSize desde product_variants
     Map<String, int>? stockBySize;
+    Map<String, Map<String, int>>? stockByColorSize;
     final variants = json['variants'] as List<dynamic>?;
     if (variants != null && variants.isNotEmpty) {
       stockBySize = {};
+      stockByColorSize = {};
       for (final v in variants) {
         final m = v as Map<String, dynamic>;
         final size = m['size'] as String? ?? '';
         final stock = m['stock'] as int? ?? 0;
+        final color = m['color'] as String?;
         if (size.isNotEmpty) {
+          // Acumulado total por talla (todas las colores)
           stockBySize[size] = (stockBySize[size] ?? 0) + stock;
+          // Por color y talla
+          if (color != null && color.isNotEmpty) {
+            stockByColorSize[color] ??= {};
+            stockByColorSize[color]![size] = (stockByColorSize[color]![size] ?? 0) + stock;
+          }
         }
       }
     } else if (json['stock_by_size'] != null) {
@@ -86,6 +97,7 @@ class ProductModel with _$ProductModel {
         discountPercent: json['discount_percent'] as int?,
         sizes: sizes,
         stockBySize: stockBySize,
+        stockByColorSize: stockByColorSize,
         active: json['active'] as bool? ?? true,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
@@ -124,6 +136,32 @@ class ProductModel with _$ProductModel {
       };
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // GETTERS DE COLORES
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Colores únicos extraídos de las imágenes del producto [{name, hex}]
+  List<({String name, String hex})> get colors {
+    final seen = <String>{};
+    final result = <({String name, String hex})>[];
+    for (final img in images) {
+      if (img.color != null && img.color!.isNotEmpty && img.colorHex != null && img.colorHex!.isNotEmpty) {
+        if (!seen.contains(img.color)) {
+          seen.add(img.color!);
+          result.add((name: img.color!, hex: img.colorHex!));
+        }
+      }
+    }
+    return result;
+  }
+
+  /// Imágenes filtradas por color
+  List<ProductImageModel> imagesForColor(String? colorName) {
+    if (colorName == null || colorName.isEmpty) return images;
+    final filtered = images.where((img) => img.color == colorName).toList();
+    return filtered.isNotEmpty ? filtered : images;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // GETTERS DE STOCK
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -140,6 +178,18 @@ class ProductModel with _$ProductModel {
     }
     // Si no hay stock por talla, usar stock general
     return stock;
+  }
+
+  /// Stock por talla filtrado por color.
+  /// Si no hay datos por color, devuelve stockBySize general.
+  Map<String, int> stockForColor(String? colorName) {
+    if (colorName != null &&
+        colorName.isNotEmpty &&
+        stockByColorSize != null &&
+        stockByColorSize!.containsKey(colorName)) {
+      return stockByColorSize![colorName]!;
+    }
+    return stockBySize ?? {};
   }
 
   /// Verificar si una talla tiene stock

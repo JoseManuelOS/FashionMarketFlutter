@@ -74,8 +74,7 @@ Future<List<Map<String, dynamic>>> homeCategories(Ref ref) async {
   final response = await supabase
       .from('categories')
       .select()
-      .eq('active', true)
-      .order('sort_order', ascending: true);
+      .order('display_order', ascending: true);
 
   return List<Map<String, dynamic>>.from(response);
 }

@@ -52,7 +52,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
             *,
             category:categories(*),
             images:product_images(*),
-            variants:product_variants(id, size, stock, sku)
+            variants:product_variants(id, size, stock, sku, color)
           ''')
           .eq('active', true)
           .order('created_at', ascending: false)
@@ -65,7 +65,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
               *,
               category:categories(*),
               images:product_images(*),
-              variants:product_variants(id, size, stock, sku)
+              variants:product_variants(id, size, stock, sku, color)
             ''')
             .eq('active', true)
             .eq('category_id', categoryId)
@@ -106,7 +106,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
               *,
               category:categories(*),
               images:product_images(*),
-              variants:product_variants(id, size, stock, sku)
+              variants:product_variants(id, size, stock, sku, color)
             ''')
             .eq('id', id)
             .single();
@@ -118,7 +118,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
               *,
               category:categories(*),
               images:product_images(*),
-              variants:product_variants(id, size, stock, sku)
+              variants:product_variants(id, size, stock, sku, color)
             ''')
             .eq('slug', id)
             .single();
@@ -148,7 +148,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
             *,
             category:categories(*),
             images:product_images(*),
-            variants:product_variants(id, size, stock, sku)
+            variants:product_variants(id, size, stock, sku, color)
           ''')
           .ilike('name', '%$query%')
           .eq('active', true)

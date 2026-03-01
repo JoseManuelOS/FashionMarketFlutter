@@ -1074,6 +1074,16 @@ class _ProductCard extends ConsumerWidget {
                           color: Colors.grey,
                           onTap: () => _showViewProductDialog(context, product),
                         ),
+                        const SizedBox(width: 8),
+                        _buildActionButton(
+                          icon: (product['is_active'] as bool? ?? true)
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: (product['is_active'] as bool? ?? true)
+                              ? Colors.orange
+                              : Colors.green,
+                          onTap: () => _confirmDeleteProduct(context, ref, product),
+                        ),
                       ],
                     ),
                   ],
@@ -1103,6 +1113,80 @@ class _ProductCard extends ConsumerWidget {
         child: Icon(icon, color: color, size: 18),
       ),
     );
+  }
+
+  /// Muestra diálogo de confirmación para DESACTIVAR un producto (soft delete).
+  /// Pone is_active = false en vez de borrar el registro.
+  Future<void> _confirmDeleteProduct(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> product,
+  ) async {
+    final productName = product['name'] as String? ?? 'Producto';
+    final isActive = product['is_active'] as bool? ?? true;
+    final actionLabel = isActive ? 'Desactivar' : 'Reactivar';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF12121A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          '¿$actionLabel producto?',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isActive
+              ? '"$productName" dejará de aparecer en la tienda. Podrás reactivarlo después.'
+              : '"$productName" volverá a aparecer en la tienda.',
+          style: TextStyle(color: Colors.grey[400]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              actionLabel,
+              style: TextStyle(color: isActive ? Colors.orange : Colors.green),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      final supabase = Supabase.instance.client;
+
+      await supabase
+          .from('products')
+          .update({'is_active': !isActive})
+          .eq('id', product['id']);
+
+      ref.invalidate(adminProductsProvider);
+      ref.invalidate(adminDashboardStatsProvider);
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            isActive
+                ? '✅ Producto desactivado correctamente'
+                : '✅ Producto reactivado correctamente',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   /// Muestra diálogo para VER detalles del producto

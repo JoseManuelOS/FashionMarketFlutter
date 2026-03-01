@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -40,10 +41,25 @@ class AppRouter {
   static final _shellNavigatorCartKey = GlobalKey<NavigatorState>(debugLabel: 'shellCart');
   static final _shellNavigatorProfileKey = GlobalKey<NavigatorState>(debugLabel: 'shellProfile');
 
+  /// En web, si el navegador ya tiene una ruta (p.ej. Stripe redirige a
+  /// /checkout/success?session_id=...), usar esa ruta en vez del splash.
+  static String get _initialLocation {
+    if (kIsWeb) {
+      final uri = Uri.base;
+      final path = uri.path;
+      // Rutas válidas para deep-link directo (no splash ni raíz)
+      if (path.length > 1 && path != '/') {
+        final query = uri.query;
+        return query.isNotEmpty ? '$path?$query' : path;
+      }
+    }
+    return AppRoutes.splash;
+  }
+
   /// Instancia del router
   static final GoRouter router = GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: AppRoutes.splash,
+    initialLocation: _initialLocation,
     debugLogDiagnostics: true,
     routes: [
       // ══════════════════════════════════════════════════════════════════════
@@ -180,7 +196,7 @@ class AppRouter {
                         path: ':orderId',
                         name: 'orderDetail',
                         builder: (context, state) {
-                          final orderId = int.tryParse(state.pathParameters['orderId'] ?? '') ?? 0;
+                          final orderId = state.pathParameters['orderId'] ?? '';
                           return OrderDetailScreen(orderId: orderId);
                         },
                       ),
@@ -233,8 +249,10 @@ class AppRouter {
         path: AppRoutes.checkoutSuccess,
         name: 'checkoutSuccess',
         builder: (context, state) {
+          final sessionId = state.uri.queryParameters['session_id'] ?? '';
           final orderId = state.uri.queryParameters['orderId'] ?? '';
-          return CheckoutSuccessScreen(orderId: orderId);
+          final orderNumber = state.uri.queryParameters['orderNumber'] ?? '';
+          return CheckoutSuccessScreen(sessionId: sessionId, orderId: orderId, orderNumber: orderNumber);
         },
       ),
 
@@ -389,5 +407,6 @@ class AppRoutes {
   static String productBySlug(String slug) => '/productos/$slug';
   static String categoryBySlug(String slug) => '/categoria/$slug';
   static String searchByQuery(String query) => '/buscar?q=$query';
-  static String checkoutSuccessWithOrder(String orderId) => '/checkout/success?orderId=$orderId';
+  static String checkoutSuccessWithOrder(String orderId, {String orderNumber = ''}) =>
+      '/checkout/success?orderId=$orderId${orderNumber.isNotEmpty ? '&orderNumber=$orderNumber' : ''}';
 }

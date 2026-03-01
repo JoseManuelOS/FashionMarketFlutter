@@ -137,7 +137,7 @@ class CartScreen extends ConsumerWidget {
             itemCount: items.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.only(bottom: 10),
                 child: _CartItemCard(item: items[index]),
               );
             },
@@ -157,7 +157,7 @@ class CartScreen extends ConsumerWidget {
     int itemCount,
   ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       decoration: BoxDecoration(
         color: AppColors.dark400,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -380,6 +380,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
     try {
       final result = await FashionStoreApiService.getStockBySize(
         productId: item.productId,
+        color: item.color,
       );
       final stockBySize = result['stockBySize'] as Map?;
       final available = stockBySize != null
@@ -405,12 +406,12 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
       }
       ref
           .read(cartNotifierProvider.notifier)
-          .incrementQuantity(item.productId, item.size);
+          .incrementQuantity(item.productId, item.size, item.color);
     } catch (_) {
       // Si falla la consulta de stock, incrementar sin validación
       ref
           .read(cartNotifierProvider.notifier)
-          .incrementQuantity(item.productId, item.size);
+          .incrementQuantity(item.productId, item.size, item.color);
     } finally {
       if (mounted) setState(() => _isCheckingStock = false);
     }
@@ -432,7 +433,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
         child: const Icon(Icons.delete, color: Colors.white, size: 28),
       ),
       onDismissed: (_) {
-        ref.read(cartNotifierProvider.notifier).removeItem(item.productId, item.size);
+        ref.read(cartNotifierProvider.notifier).removeItem(item.productId, item.size, item.color);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${item.name} eliminado del carrito'),
@@ -447,7 +448,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.dark400,
           borderRadius: BorderRadius.circular(16),
@@ -458,31 +459,31 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
           children: [
             // Imagen
             GestureDetector(
-              onTap: () => context.push('/producto/${item.productId}'),
+              onTap: () => context.push('/producto/${item.slug}'),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 child: CachedNetworkImage(
                   imageUrl: item.imageUrl,
-                  width: 100,
-                  height: 120,
+                  width: 80,
+                  height: 90,
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Container(
                     color: AppColors.dark300,
                     child: const Center(
-                      child: Icon(Icons.image, color: AppColors.textSubtle),
+                      child: Icon(Icons.image, color: AppColors.textSubtle, size: 20),
                     ),
                   ),
                   errorWidget: (_, __, ___) => Container(
                     color: AppColors.dark300,
                     child: const Center(
-                      child: Icon(Icons.image, color: AppColors.textSubtle),
+                      child: Icon(Icons.image, color: AppColors.textSubtle, size: 20),
                     ),
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
 
             // Info
             Expanded(
@@ -491,39 +492,61 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
                 children: [
                   // Nombre
                   GestureDetector(
-                    onTap: () => context.push('/producto/${item.productId}'),
+                    onTap: () => context.push('/producto/${item.slug}'),
                     child: Text(
                       item.name,
                       style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                  // Talla
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassLight,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Talla: ${item.size}',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  // Talla y Color en una fila
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.glassLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Talla: ${item.size}',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (item.color != null && item.color!.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.glassLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.color!,
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // Precio
                   Row(
@@ -570,7 +593,7 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
                               onPressed: () {
                                 ref
                                     .read(cartNotifierProvider.notifier)
-                                    .decrementQuantity(item.productId, item.size);
+                                    .decrementQuantity(item.productId, item.size, item.color);
                               },
                             ),
                             Padding(

@@ -13,8 +13,9 @@ import '../widgets/product_card.dart';
 import '../widgets/filter_bottom_sheet.dart';
 
 /// Página de catálogo de productos
-/// Muestra productos con filtros por categoría, búsqueda y ofertas
-class ProductListPage extends ConsumerWidget {
+/// Muestra productos con filtros por categoría, búsqueda y ofertas.
+/// Incluye infinite scroll: al llegar al final, carga la siguiente página.
+class ProductListPage extends ConsumerStatefulWidget {
   final String? categorySlug;
   final String? searchQuery;
   final bool isOffers;
@@ -27,18 +28,67 @@ class ProductListPage extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProductListPage> createState() => _ProductListPageState();
+}
+
+class _ProductListPageState extends ConsumerState<ProductListPage> {
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_isLoadingMore || !_hasMore) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    // Trigger cuando falta un 20% para llegar al final
+    if (currentScroll >= maxScroll * 0.8) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    _currentPage++;
+    try {
+      final notifier = ref.read(productListProvider.notifier);
+      final prevCount = ref.read(productListProvider).valueOrNull?.length ?? 0;
+      await notifier.loadMore(_currentPage);
+      final newCount = ref.read(productListProvider).valueOrNull?.length ?? 0;
+      if (newCount == prevCount) _hasMore = false;
+    } catch (_) {
+      _currentPage--;
+    }
+    if (mounted) setState(() => _isLoadingMore = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final productsAsync = ref.watch(sortedProductListProvider);
     final filters = ref.watch(productFiltersProvider);
     final hasActiveFilters = filters.hasActiveFilters;
 
     // Determinar título según el contexto
     String title = 'Todos los productos';
-    if (isOffers) {
+    if (widget.isOffers) {
       title = 'Ofertas';
-    } else if (categorySlug != null) {
-      title = _getCategoryTitle(categorySlug!);
-    } else if (searchQuery != null) {
+    } else if (widget.categorySlug != null) {
+      title = _getCategoryTitle(widget.categorySlug!);
+    } else if (widget.searchQuery != null) {
       title = 'Resultados de búsqueda';
     }
 
@@ -122,7 +172,7 @@ class ProductListPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isOffers
+                      widget.isOffers
                           ? 'No hay ofertas disponibles en este momento'
                           : 'No hay productos en esta categoría',
                       style: TextStyle(color: AppColors.textMuted),
@@ -133,6 +183,7 @@ class ProductListPage extends ConsumerWidget {
             }
 
             return CustomScrollView(
+              controller: _scrollController,
               slivers: [
                 // Info de resultados
                 SliverToBoxAdapter(
@@ -200,6 +251,20 @@ class ProductListPage extends ConsumerWidget {
                     ),
                   ),
                 ),
+
+                // Infinite scroll loading indicator
+                if (_isLoadingMore)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.neonCyan,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Espacio al final
                 const SliverToBoxAdapter(

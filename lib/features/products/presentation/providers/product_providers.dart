@@ -36,7 +36,12 @@ class ProductList extends _$ProductList {
     String? categoryId,
   }) async {
     final repository = ref.read(productRepositoryProvider);
-    return repository.getProducts(page: page, categoryId: categoryId);
+    final result =
+        await repository.getProducts(page: page, categoryId: categoryId);
+    return result.fold(
+      (failure) => throw Exception(failure.message),
+      (products) => products,
+    );
   }
 
   /// Refresca la lista de productos
@@ -65,7 +70,11 @@ class ProductDetail extends _$ProductDetail {
   @override
   Future<ProductModel> build(String productId) async {
     final repository = ref.read(productRepositoryProvider);
-    return repository.getProductById(productId);
+    final result = await repository.getProductById(productId);
+    return result.fold(
+      (failure) => throw Exception(failure.message),
+      (product) => product,
+    );
   }
 
   /// Refresca los detalles del producto
@@ -74,7 +83,11 @@ class ProductDetail extends _$ProductDetail {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       final repository = ref.read(productRepositoryProvider);
-      return repository.getProductById(productId);
+      final result = await repository.getProductById(productId);
+      return result.fold(
+        (failure) => throw Exception(failure.message),
+        (product) => product,
+      );
     });
   }
 }
@@ -93,7 +106,11 @@ class ProductSearch extends _$ProductSearch {
     if (!ref.exists(productSearchProvider(query))) return [];
     
     final repository = ref.read(productRepositoryProvider);
-    return repository.searchProducts(query);
+    final result = await repository.searchProducts(query);
+    return result.fold(
+      (failure) => throw Exception(failure.message),
+      (products) => products,
+    );
   }
 }
 

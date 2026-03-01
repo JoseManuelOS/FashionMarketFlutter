@@ -27,13 +27,14 @@ class CartItemModelAdapter extends TypeAdapter<CartItemModel> {
       imageUrl: fields[7] as String,
       originalPrice: fields[8] as double?,
       discountPercent: fields[9] as int,
+      color: fields[10] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, CartItemModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -53,7 +54,9 @@ class CartItemModelAdapter extends TypeAdapter<CartItemModel> {
       ..writeByte(8)
       ..write(obj.originalPrice)
       ..writeByte(9)
-      ..write(obj.discountPercent);
+      ..write(obj.discountPercent)
+      ..writeByte(10)
+      ..write(obj.color);
   }
 
   @override
@@ -83,6 +86,7 @@ _$CartItemModelImpl _$$CartItemModelImplFromJson(Map<String, dynamic> json) =>
       imageUrl: json['imageUrl'] as String,
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       discountPercent: (json['discountPercent'] as num?)?.toInt() ?? 0,
+      color: json['color'] as String?,
     );
 
 Map<String, dynamic> _$$CartItemModelImplToJson(_$CartItemModelImpl instance) =>
@@ -97,4 +101,5 @@ Map<String, dynamic> _$$CartItemModelImplToJson(_$CartItemModelImpl instance) =>
       'imageUrl': instance.imageUrl,
       'originalPrice': instance.originalPrice,
       'discountPercent': instance.discountPercent,
+      'color': instance.color,
     };

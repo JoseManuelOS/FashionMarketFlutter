@@ -7,6 +7,7 @@ import '../../../../config/router/app_router.dart';
 import '../providers/admin_providers.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/admin_notification_button.dart';
+import '../widgets/admin_offers_switch.dart';
 import '../widgets/sales_chart_widget.dart';
 
 /// Dashboard principal del administrador
@@ -89,7 +90,7 @@ class AdminDashboardScreen extends ConsumerWidget {
               // Stats Cards
               statsAsync.when(
                 loading: () => _buildStatsLoading(),
-                error: (e, _) => _buildStatsError(),
+                error: (e, _) => _buildStatsError(e),
                 data: (stats) => _buildStatsGrid(stats),
               ),
 
@@ -110,6 +111,11 @@ class AdminDashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Switch global de ofertas
+              const AdminOffersSwitch(),
+              const SizedBox(height: 12),
+
               _buildQuickActions(context),
 
               const SizedBox(height: 32),
@@ -160,16 +166,33 @@ class AdminDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatsError() {
+  Widget _buildStatsError(Object error) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
-      child: const Text(
-        'Error al cargar estadísticas',
-        style: TextStyle(color: Colors.red),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 16),
+              SizedBox(width: 8),
+              Text(
+                'Error al cargar estadísticas',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            error.toString(),
+            style: TextStyle(color: Colors.red.shade300, fontSize: 11),
+          ),
+        ],
       ),
     );
   }

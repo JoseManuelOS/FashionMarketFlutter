@@ -5,18 +5,19 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../config/theme/app_colors.dart';
-import '../../../../config/router/app_router.dart';
 import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/product_model.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
-import '../../../cart/data/models/cart_item_model.dart';
 import '../../../favorites/presentation/providers/favorites_providers.dart';
 import '../providers/product_providers.dart';
 import '../widgets/product_image_gallery.dart';
+import '../widgets/add_to_cart_btn.dart';
 import '../widgets/size_selector.dart';
+import '../widgets/color_selector.dart';
 import '../widgets/quantity_selector.dart';
 import '../../../../shared/widgets/size_recommender_modal.dart';
 import '../widgets/product_features.dart';
+import '../../../cart/presentation/widgets/cart_slide_over.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final ProductModel product;
@@ -32,9 +33,8 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   String? _selectedSize;
+  String? _selectedColor;
   int _quantity = 1;
-  bool _isAdding = false;
-  bool _showSuccess = false;
 
   /// Stock en tiempo real por talla (obtenido de la API)
   Map<String, int>? _liveStockBySize;
@@ -42,6 +42,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Seleccionar primer color disponible
+    final colors = widget.product.colors;
+    if (colors.isNotEmpty) {
+      _selectedColor = colors.first.name;
+    }
     // Seleccionar primera talla disponible
     if (widget.product.sizes.isNotEmpty) {
       _selectedSize = widget.product.sizes.first;
@@ -55,6 +60,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     try {
       final result = await FashionStoreApiService.getStockBySize(
         productId: widget.product.id,
+        color: _selectedColor,
       );
       if (mounted) {
         final stockBySize = result['stockBySize'];
@@ -71,9 +77,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     }
   }
 
-  /// Stock por talla: prioriza datos en tiempo real, luego los del modelo
+  /// Stock por talla: prioriza datos en tiempo real, luego per-color del modelo, luego general
   Map<String, int> get _effectiveStockBySize {
-    return _liveStockBySize ?? widget.product.stockBySize ?? {};
+    if (_liveStockBySize != null) return _liveStockBySize!;
+    return widget.product.stockForColor(_selectedColor);
   }
 
   int get _currentSizeStock {
@@ -82,70 +89,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   bool get _isOutOfStock => _currentSizeStock <= 0;
-
-  void _handleAddToCart() async {
-    if (_isOutOfStock || _selectedSize == null) return;
-
-    final cart = ref.read(cartNotifierProvider);
-    final existingItem = cart.where(
-      (item) => item.productId == widget.product.id && item.size == _selectedSize,
-    ).toList();
-
-    final currentQty = existingItem.isNotEmpty ? existingItem.first.quantity : 0;
-
-    if (currentQty + _quantity > _currentSizeStock) {
-      _showStockAlert();
-      return;
-    }
-
-    setState(() => _isAdding = true);
-
-    // Añadir al carrito
-    ref.read(cartNotifierProvider.notifier).addItem(
-      CartItemModel(
-        id: '${widget.product.id}_$_selectedSize',
-        productId: widget.product.id,
-        name: widget.product.name,
-        slug: widget.product.slug,
-        price: widget.product.price,
-        imageUrl: widget.product.mainImageUrl,
-        size: _selectedSize!,
-        quantity: _quantity,
-        originalPrice: widget.product.originalPrice,
-        discountPercent: widget.product.discountPercent ?? 0,
-      ),
-    );
-
-    // Feedback visual
-    await Future.delayed(const Duration(milliseconds: 300));
-    
-    if (mounted) {
-      setState(() {
-        _isAdding = false;
-        _showSuccess = true;
-      });
-
-      await Future.delayed(const Duration(seconds: 2));
-      
-      if (mounted) {
-        setState(() => _showSuccess = false);
-      }
-    }
-  }
-
-  void _showStockAlert() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Solo hay $_currentSizeStock unidades de talla $_selectedSize disponibles',
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: AppColors.neonFuchsia,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
 
   void _shareProduct() {
     Share.share(
@@ -247,6 +190,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Selector de color
+                        if (product.colors.isNotEmpty) ...[                          ColorSelector(
+                            colors: product.colors,
+                            selectedColor: _selectedColor,
+                            onColorSelected: (color) {
+                              setState(() {
+                                _selectedColor = color;
+                                _quantity = 1;
+                                _liveStockBySize = null;
+                              });
+                              _fetchLiveStock();
+                            },
+                          ),
+                          const SizedBox(height: 20),
+                        ],
                         // Selector de talla
                         if (product.sizes.isNotEmpty) ...[
                           SizeSelector(
@@ -315,10 +273,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         const SizedBox(height: 24),
                         
                         // Botón añadir al carrito
-                        _buildAddToCartButton(),
+                        AddToCartButton(
+                          product: widget.product,
+                          selectedSize: _selectedSize,
+                          selectedColor: _selectedColor,
+                          quantity: _quantity,
+                          currentSizeStock: _currentSizeStock,
+                        ),
                         
                         // Aviso si ya está en carrito
-                        if (itemInCart.isNotEmpty && !_showSuccess)
+                        if (itemInCart.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
                             child: Text(
@@ -485,11 +449,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            // Galería de imágenes
+            // Galería de imágenes (filtrada por color si hay seleccionado)
             ProductImageGallery(
-              images: widget.product.images,
+              images: widget.product.imagesForColor(_selectedColor),
               isOffer: widget.product.isOffer,
               discountPercentage: widget.product.discountPercentage,
+              heroTag: 'product-hero-${widget.product.slug}',
             ),
             
             // Gradient overlay inferior
@@ -550,7 +515,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         color: AppColors.dark500.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => context.push(AppRoutes.cart),
+          onTap: () => CartSlideOver.show(context),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             width: 40,
@@ -674,102 +639,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildAddToCartButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        child: ElevatedButton(
-          onPressed: _isOutOfStock || _isAdding ? null : _handleAddToCart,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _showSuccess
-                ? Colors.green
-                : _isOutOfStock
-                    ? AppColors.dark400
-                    : null,
-            disabledBackgroundColor: _isAdding
-                ? AppColors.neonCyan.withValues(alpha: 0.5)
-                : AppColors.dark400,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            elevation: _showSuccess ? 0 : 8,
-            shadowColor: _showSuccess ? Colors.green : AppColors.neonCyan.withValues(alpha: 0.5),
-          ),
-          child: _buildButtonContent(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButtonContent() {
-    if (_isAdding) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation(
-                Colors.white.withValues(alpha: 0.7),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Añadiendo...',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (_showSuccess) {
-      return const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.check_rounded, color: Colors.white),
-          SizedBox(width: 8),
-          Text(
-            '¡Añadido al carrito!',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (_isOutOfStock) {
-      return Text(
-        'Agotado',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.5),
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-      );
-    }
-
-    return const Text(
-      'Añadir al Carrito',
-      style: TextStyle(
-        color: AppColors.dark600,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-      ),
     );
   }
 }

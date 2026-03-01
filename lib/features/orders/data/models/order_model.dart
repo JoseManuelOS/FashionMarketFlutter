@@ -86,8 +86,8 @@ enum OrderStatus {
 @Freezed(fromJson: false, toJson: false)
 class OrderModel with _$OrderModel {
   const factory OrderModel({
-    required int id,
-    required int orderNumber,
+    required String id,
+    @Default(0) int orderNumber,
     required double totalPrice,
     required OrderStatus status,
     String? customerId,
@@ -118,8 +118,8 @@ class OrderModel with _$OrderModel {
 
   /// Factory con manejo de snake_case desde Supabase
   factory OrderModel.fromJson(Map<String, dynamic> json) => OrderModel(
-        id: json['id'] as int,
-        orderNumber: json['order_number'] as int,
+        id: json['id']?.toString() ?? '',
+        orderNumber: (json['order_number'] as num?)?.toInt() ?? 0,
         totalPrice: (json['total_price'] as num).toDouble(),
         status: OrderStatus.fromString(json['status'] as String?),
         customerId: json['customer_id'] as String?,
@@ -192,8 +192,8 @@ class OrderModel with _$OrderModel {
 @Freezed(fromJson: false, toJson: false)
 class OrderItemModel with _$OrderItemModel {
   const factory OrderItemModel({
-    required int id,
-    required int orderId,
+    required String id,
+    required String orderId,
     required String productId,
     required String productName,
     String? productSlug,
@@ -209,8 +209,8 @@ class OrderItemModel with _$OrderItemModel {
 
   /// Factory con manejo de snake_case desde Supabase
   factory OrderItemModel.fromJson(Map<String, dynamic> json) => OrderItemModel(
-        id: json['id'] as int,
-        orderId: json['order_id'] as int,
+        id: json['id']?.toString() ?? '',
+        orderId: json['order_id']?.toString() ?? '',
         productId: json['product_id'] as String,
         productName: json['product_name'] as String,
         productSlug: json['product_slug'] as String?,

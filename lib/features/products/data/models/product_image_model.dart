@@ -12,6 +12,7 @@ class ProductImageModel with _$ProductImageModel {
     required String imageUrl,
     @Default(0) int sortOrder,
     String? color,
+    String? colorHex,
     String? altText,
     DateTime? createdAt,
   }) = _ProductImageModel;
@@ -25,6 +26,7 @@ class ProductImageModel with _$ProductImageModel {
         imageUrl: json['image_url'] as String,
         sortOrder: json['order'] as int? ?? json['sort_order'] as int? ?? 0,
         color: json['color'] as String?,
+        colorHex: json['color_hex'] as String?,
         altText: json['alt_text'] as String?,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
@@ -38,6 +40,7 @@ class ProductImageModel with _$ProductImageModel {
         'image_url': imageUrl,
         'sort_order': sortOrder,
         'color': color,
+        'color_hex': colorHex,
         'alt_text': altText,
         'created_at': createdAt?.toIso8601String(),
       };

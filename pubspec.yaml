@@ -85,6 +85,13 @@ dependencies:
   # Imágenes - Upload
   image_picker: ^1.1.2             # Seleccionar imágenes del dispositivo
   mime: ^2.0.0                     # Detección de tipo MIME
+  flutter_image_compress: ^2.3.0   # Compresión de imágenes antes de subir
+
+  # Tipografía
+  google_fonts: ^6.2.1             # Fuentes: Playfair Display + Lato
+
+  # Programación funcional
+  fpdart: ^1.1.0                   # Either<Failure, T> para manejo funcional de errores
   
   # Iconos adicionales
   iconsax: ^0.0.8

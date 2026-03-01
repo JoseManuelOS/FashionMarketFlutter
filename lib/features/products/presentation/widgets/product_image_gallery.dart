@@ -8,12 +8,16 @@ class ProductImageGallery extends StatefulWidget {
   final List<ProductImageModel> images;
   final bool isOffer;
   final double? discountPercentage;
+  /// Hero tag for shared element transition from ProductCard.
+  /// Only applied to the first image (index 0). If null, uses default tag.
+  final String? heroTag;
 
   const ProductImageGallery({
     super.key,
     required this.images,
     this.isOffer = false,
     this.discountPercentage,
+    this.heroTag,
   });
 
   @override
@@ -51,7 +55,9 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
             return GestureDetector(
               onTap: () => _openFullScreenGallery(context, index),
               child: Hero(
-                tag: 'product-image-$index',
+                tag: (index == 0 && widget.heroTag != null)
+                    ? widget.heroTag!
+                    : 'product-image-$index',
                 child: Image.network(
                   image.imageUrl,
                   fit: BoxFit.cover,
@@ -230,6 +236,7 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
         builder: (context) => _FullScreenGallery(
           images: widget.images,
           initialIndex: initialIndex,
+          heroTag: widget.heroTag,
         ),
       ),
     );
@@ -239,10 +246,12 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
 class _FullScreenGallery extends StatefulWidget {
   final List<ProductImageModel> images;
   final int initialIndex;
+  final String? heroTag;
 
   const _FullScreenGallery({
     required this.images,
     required this.initialIndex,
+    this.heroTag,
   });
 
   @override
@@ -296,7 +305,9 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
             maxScale: 4.0,
             child: Center(
               child: Hero(
-                tag: 'product-image-$index',
+                tag: (index == 0 && widget.heroTag != null)
+                    ? widget.heroTag!
+                    : 'product-image-$index',
                 child: Image.network(
                   widget.images[index].imageUrl,
                   fit: BoxFit.contain,

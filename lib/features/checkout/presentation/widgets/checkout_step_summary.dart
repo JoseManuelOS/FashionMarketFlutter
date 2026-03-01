@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -391,33 +392,44 @@ class CheckoutStepSummary extends ConsumerWidget {
 
       if (result['success'] == true && result['url'] != null) {
         final stripeUrl = result['url'] as String;
-        final sessionId = result['sessionId'] as String;
+        final sessionId = (result['sessionId'] as String?) ?? '';
 
-        // Abrir Stripe Checkout en el navegador
+        // Validar que la URL tiene scheme antes de lanzar
         final uri = Uri.parse(stripeUrl);
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
+        if (!uri.hasScheme || (!uri.scheme.startsWith('http'))) {
+          throw Exception('URL de Stripe inválida: $stripeUrl');
+        }
+
+        // En Web: redirigir la pestaña actual a Stripe (mejor UX, evita pop-ups)
+        // En móvil/macOS: abrir en navegador externo
+        final launched = kIsWeb
+            ? await launchUrl(uri, webOnlyWindowName: '_self')
+            : await launchUrl(uri, mode: LaunchMode.externalApplication);
 
         if (!launched) {
           throw Exception('No se pudo abrir la pasarela de pago');
         }
 
-        // Esperar un momento y luego verificar el pago
         // El usuario volverá a la app tras completar el pago en Stripe
         if (context.mounted) {
-          // Mostrar diálogo de espera mientras el usuario paga
           _showPaymentPendingDialog(context, ref, sessionId);
         }
       } else {
-        throw Exception(result['error'] ?? 'Error al procesar el pago');
+        // Limpiar prefijo "Exception: " para no mostrar doble
+        final rawError = result['error']?.toString() ?? 'Error al procesar el pago';
+        final cleanError = rawError.startsWith('Exception: ')
+            ? rawError.substring('Exception: '.length)
+            : rawError;
+        throw Exception(cleanError);
       }
     } catch (e) {
       if (context.mounted) {
+        final msg = e.toString().startsWith('Exception: ')
+            ? e.toString().substring('Exception: '.length)
+            : e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(msg),
             backgroundColor: AppColors.error,
           ),
         );
@@ -439,14 +451,14 @@ class CheckoutStepSummary extends ConsumerWidget {
       barrierDismissible: false,
       builder: (dialogContext) => _PaymentPendingDialog(
         sessionId: sessionId,
-        onPaymentVerified: (orderId) {
+        onPaymentVerified: (orderId, orderNumber) {
           Navigator.of(dialogContext).pop();
           // Limpiar carrito y checkout
           ref.read(cartNotifierProvider.notifier).clearCart();
           ref.read(checkoutDataProvider.notifier).reset();
           ref.read(checkoutStepProvider.notifier).state = 0;
           // Navegar a pantalla de éxito
-          context.go(AppRoutes.checkoutSuccessWithOrder(orderId));
+          context.go(AppRoutes.checkoutSuccessWithOrder(orderId, orderNumber: orderNumber));
         },
         onCancel: () {
           Navigator.of(dialogContext).pop();
@@ -459,7 +471,7 @@ class CheckoutStepSummary extends ConsumerWidget {
 /// Diálogo para gestionar el estado del pago con Stripe
 class _PaymentPendingDialog extends StatefulWidget {
   final String sessionId;
-  final void Function(String orderId) onPaymentVerified;
+  final void Function(String orderId, String orderNumber) onPaymentVerified;
   final VoidCallback onCancel;
 
   const _PaymentPendingDialog({
@@ -486,7 +498,10 @@ class _PaymentPendingDialogState extends State<_PaymentPendingDialog> {
       final result = await StripeService.verifyPayment(widget.sessionId);
 
       if (result['success'] == true) {
-        widget.onPaymentVerified(result['orderId']?.toString() ?? '');
+        widget.onPaymentVerified(
+          result['orderId']?.toString() ?? '',
+          result['orderNumber']?.toString() ?? '',
+        );
       } else {
         setState(() {
           _error = 'El pago aún no se ha completado. Finaliza el pago en Stripe e inténtalo de nuevo.';

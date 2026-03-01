@@ -16,7 +16,7 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$OrderModel {
-  int get id => throw _privateConstructorUsedError;
+  String get id => throw _privateConstructorUsedError;
   int get orderNumber => throw _privateConstructorUsedError;
   double get totalPrice => throw _privateConstructorUsedError;
   OrderStatus get status => throw _privateConstructorUsedError;
@@ -57,7 +57,7 @@ abstract class $OrderModelCopyWith<$Res> {
       _$OrderModelCopyWithImpl<$Res, OrderModel>;
   @useResult
   $Res call(
-      {int id,
+      {String id,
       int orderNumber,
       double totalPrice,
       OrderStatus status,
@@ -131,7 +131,7 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
       id: null == id
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       orderNumber: null == orderNumber
           ? _value.orderNumber
           : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -245,7 +245,7 @@ abstract class _$$OrderModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {int id,
+      {String id,
       int orderNumber,
       double totalPrice,
       OrderStatus status,
@@ -317,7 +317,7 @@ class __$$OrderModelImplCopyWithImpl<$Res>
       id: null == id
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       orderNumber: null == orderNumber
           ? _value.orderNumber
           : orderNumber // ignore: cast_nullable_to_non_nullable
@@ -427,7 +427,7 @@ class __$$OrderModelImplCopyWithImpl<$Res>
 class _$OrderModelImpl extends _OrderModel {
   const _$OrderModelImpl(
       {required this.id,
-      required this.orderNumber,
+      this.orderNumber = 0,
       required this.totalPrice,
       required this.status,
       this.customerId,
@@ -456,8 +456,9 @@ class _$OrderModelImpl extends _OrderModel {
         super._();
 
   @override
-  final int id;
+  final String id;
   @override
+  @JsonKey()
   final int orderNumber;
   @override
   final double totalPrice;
@@ -618,8 +619,8 @@ class _$OrderModelImpl extends _OrderModel {
 
 abstract class _OrderModel extends OrderModel {
   const factory _OrderModel(
-      {required final int id,
-      required final int orderNumber,
+      {required final String id,
+      final int orderNumber,
       required final double totalPrice,
       required final OrderStatus status,
       final String? customerId,
@@ -647,7 +648,7 @@ abstract class _OrderModel extends OrderModel {
   const _OrderModel._() : super._();
 
   @override
-  int get id;
+  String get id;
   @override
   int get orderNumber;
   @override
@@ -709,8 +710,8 @@ abstract class _OrderModel extends OrderModel {
 
 /// @nodoc
 mixin _$OrderItemModel {
-  int get id => throw _privateConstructorUsedError;
-  int get orderId => throw _privateConstructorUsedError;
+  String get id => throw _privateConstructorUsedError;
+  String get orderId => throw _privateConstructorUsedError;
   String get productId => throw _privateConstructorUsedError;
   String get productName => throw _privateConstructorUsedError;
   String? get productSlug => throw _privateConstructorUsedError;
@@ -735,8 +736,8 @@ abstract class $OrderItemModelCopyWith<$Res> {
       _$OrderItemModelCopyWithImpl<$Res, OrderItemModel>;
   @useResult
   $Res call(
-      {int id,
-      int orderId,
+      {String id,
+      String orderId,
       String productId,
       String productName,
       String? productSlug,
@@ -779,11 +780,11 @@ class _$OrderItemModelCopyWithImpl<$Res, $Val extends OrderItemModel>
       id: null == id
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       orderId: null == orderId
           ? _value.orderId
           : orderId // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       productId: null == productId
           ? _value.productId
           : productId // ignore: cast_nullable_to_non_nullable
@@ -833,8 +834,8 @@ abstract class _$$OrderItemModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {int id,
-      int orderId,
+      {String id,
+      String orderId,
       String productId,
       String productName,
       String? productSlug,
@@ -875,11 +876,11 @@ class __$$OrderItemModelImplCopyWithImpl<$Res>
       id: null == id
           ? _value.id
           : id // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       orderId: null == orderId
           ? _value.orderId
           : orderId // ignore: cast_nullable_to_non_nullable
-              as int,
+              as String,
       productId: null == productId
           ? _value.productId
           : productId // ignore: cast_nullable_to_non_nullable
@@ -938,9 +939,9 @@ class _$OrderItemModelImpl extends _OrderItemModel {
       : super._();
 
   @override
-  final int id;
+  final String id;
   @override
-  final int orderId;
+  final String orderId;
   @override
   final String productId;
   @override
@@ -1017,8 +1018,8 @@ class _$OrderItemModelImpl extends _OrderItemModel {
 
 abstract class _OrderItemModel extends OrderItemModel {
   const factory _OrderItemModel(
-      {required final int id,
-      required final int orderId,
+      {required final String id,
+      required final String orderId,
       required final String productId,
       required final String productName,
       final String? productSlug,
@@ -1031,9 +1032,9 @@ abstract class _OrderItemModel extends OrderItemModel {
   const _OrderItemModel._() : super._();
 
   @override
-  int get id;
+  String get id;
   @override
-  int get orderId;
+  String get orderId;
   @override
   String get productId;
   @override

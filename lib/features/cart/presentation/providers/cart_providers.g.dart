@@ -79,7 +79,7 @@ final isCartEmptyProvider = AutoDisposeProvider<bool>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef IsCartEmptyRef = AutoDisposeProviderRef<bool>;
-String _$cartNotifierHash() => r'fc61c2f654d5b05098dbbbd72f5dd505be7116a6';
+String _$cartNotifierHash() => r'38038646d6fd573dca174fea7c3260c5d43d76e9';
 
 /// Notifier para gestionar el estado del carrito
 ///

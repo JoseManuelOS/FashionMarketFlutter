@@ -823,8 +823,8 @@ GRANT EXECUTE ON FUNCTION admin_get_invoices(TEXT) TO anon, authenticated;
 -- =============================================
 CREATE TABLE IF NOT EXISTS order_item_returns (
   id SERIAL PRIMARY KEY,
-  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
   quantity_returned INTEGER NOT NULL CHECK (quantity_returned > 0),
   reason TEXT,
   refund_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
@@ -837,7 +837,7 @@ CREATE INDEX IF NOT EXISTS idx_order_item_returns_order ON order_item_returns(or
 CREATE INDEX IF NOT EXISTS idx_order_item_returns_item ON order_item_returns(order_item_id);
 
 -- RLS deshabilitado (acceso vía SECURITY DEFINER RPCs)
-ALTER TABLE order_item_returns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_item_returns ENABLE ROW LEVEL SECflutter run URITY;
 
 
 -- =============================================
@@ -845,7 +845,7 @@ ALTER TABLE order_item_returns ENABLE ROW LEVEL SECURITY;
 -- =============================================
 CREATE OR REPLACE FUNCTION admin_get_order_items(
   p_admin_email TEXT,
-  p_order_id INTEGER
+  p_order_id UUID
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -888,7 +888,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION admin_get_order_items(TEXT, INTEGER) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION admin_get_order_items(TEXT, UUID) TO anon, authenticated;
 
 
 -- =============================================
@@ -913,7 +913,7 @@ SECURITY DEFINER
 AS $$
 DECLARE
   v_admin_exists BOOLEAN;
-  v_order_id INTEGER;
+  v_order_id UUID;
   v_order_status TEXT;
   v_item JSONB;
   v_order_item RECORD;
@@ -932,7 +932,7 @@ BEGIN
     RAISE EXCEPTION 'No autorizado';
   END IF;
 
-  v_order_id := (p_data->>'order_id')::integer;
+  v_order_id := (p_data->>'order_id')::uuid;
 
   -- Verificar que el pedido existe y está en estado válido para devolución
   SELECT status INTO v_order_status FROM orders WHERE id = v_order_id;
@@ -957,7 +957,7 @@ BEGIN
     -- Obtener info del order_item
     SELECT oi.* INTO v_order_item
     FROM order_items oi
-    WHERE oi.id = (v_item->>'order_item_id')::integer
+    WHERE oi.id = (v_item->>'order_item_id')::uuid
       AND oi.order_id = v_order_id;
     
     IF v_order_item IS NULL THEN

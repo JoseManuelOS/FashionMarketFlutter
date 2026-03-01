@@ -5,13 +5,12 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../config/theme/app_colors.dart';
-import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/order_model.dart';
 import '../providers/orders_providers.dart';
 
 /// Pantalla de detalle de un pedido
 class OrderDetailScreen extends ConsumerStatefulWidget {
-  final int orderId;
+  final String orderId;
   const OrderDetailScreen({super.key, required this.orderId});
 
   @override
@@ -760,7 +759,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   Future<void> _requestInvoice(OrderModel order) async {
     setState(() => _isRequestingInvoice = true);
     try {
-      final result = await FashionStoreApiService.requestInvoice(
+      final repo = ref.read(orderRepositoryProvider);
+      final result = await repo.requestInvoice(
         orderId: order.id.toString(),
       );
       if (mounted) {

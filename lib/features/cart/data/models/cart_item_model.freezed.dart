@@ -40,6 +40,8 @@ mixin _$CartItemModel {
   double? get originalPrice => throw _privateConstructorUsedError;
   @HiveField(9)
   int get discountPercent => throw _privateConstructorUsedError;
+  @HiveField(10)
+  String? get color => throw _privateConstructorUsedError;
 
   /// Serializes this CartItemModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -67,7 +69,8 @@ abstract class $CartItemModelCopyWith<$Res> {
       @HiveField(6) String size,
       @HiveField(7) String imageUrl,
       @HiveField(8) double? originalPrice,
-      @HiveField(9) int discountPercent});
+      @HiveField(9) int discountPercent,
+      @HiveField(10) String? color});
 }
 
 /// @nodoc
@@ -95,6 +98,7 @@ class _$CartItemModelCopyWithImpl<$Res, $Val extends CartItemModel>
     Object? imageUrl = null,
     Object? originalPrice = freezed,
     Object? discountPercent = null,
+    Object? color = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -137,6 +141,10 @@ class _$CartItemModelCopyWithImpl<$Res, $Val extends CartItemModel>
           ? _value.discountPercent
           : discountPercent // ignore: cast_nullable_to_non_nullable
               as int,
+      color: freezed == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -159,7 +167,8 @@ abstract class _$$CartItemModelImplCopyWith<$Res>
       @HiveField(6) String size,
       @HiveField(7) String imageUrl,
       @HiveField(8) double? originalPrice,
-      @HiveField(9) int discountPercent});
+      @HiveField(9) int discountPercent,
+      @HiveField(10) String? color});
 }
 
 /// @nodoc
@@ -185,6 +194,7 @@ class __$$CartItemModelImplCopyWithImpl<$Res>
     Object? imageUrl = null,
     Object? originalPrice = freezed,
     Object? discountPercent = null,
+    Object? color = freezed,
   }) {
     return _then(_$CartItemModelImpl(
       id: null == id
@@ -227,6 +237,10 @@ class __$$CartItemModelImplCopyWithImpl<$Res>
           ? _value.discountPercent
           : discountPercent // ignore: cast_nullable_to_non_nullable
               as int,
+      color: freezed == color
+          ? _value.color
+          : color // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -244,7 +258,8 @@ class _$CartItemModelImpl extends _CartItemModel {
       @HiveField(6) required this.size,
       @HiveField(7) required this.imageUrl,
       @HiveField(8) this.originalPrice,
-      @HiveField(9) this.discountPercent = 0})
+      @HiveField(9) this.discountPercent = 0,
+      @HiveField(10) this.color})
       : super._();
 
   factory _$CartItemModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -281,10 +296,13 @@ class _$CartItemModelImpl extends _CartItemModel {
   @JsonKey()
   @HiveField(9)
   final int discountPercent;
+  @override
+  @HiveField(10)
+  final String? color;
 
   @override
   String toString() {
-    return 'CartItemModel(id: $id, productId: $productId, name: $name, slug: $slug, price: $price, quantity: $quantity, size: $size, imageUrl: $imageUrl, originalPrice: $originalPrice, discountPercent: $discountPercent)';
+    return 'CartItemModel(id: $id, productId: $productId, name: $name, slug: $slug, price: $price, quantity: $quantity, size: $size, imageUrl: $imageUrl, originalPrice: $originalPrice, discountPercent: $discountPercent, color: $color)';
   }
 
   @override
@@ -306,13 +324,14 @@ class _$CartItemModelImpl extends _CartItemModel {
             (identical(other.originalPrice, originalPrice) ||
                 other.originalPrice == originalPrice) &&
             (identical(other.discountPercent, discountPercent) ||
-                other.discountPercent == discountPercent));
+                other.discountPercent == discountPercent) &&
+            (identical(other.color, color) || other.color == color));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, productId, name, slug, price,
-      quantity, size, imageUrl, originalPrice, discountPercent);
+      quantity, size, imageUrl, originalPrice, discountPercent, color);
 
   /// Create a copy of CartItemModel
   /// with the given fields replaced by the non-null parameter values.
@@ -341,7 +360,8 @@ abstract class _CartItemModel extends CartItemModel {
       @HiveField(6) required final String size,
       @HiveField(7) required final String imageUrl,
       @HiveField(8) final double? originalPrice,
-      @HiveField(9) final int discountPercent}) = _$CartItemModelImpl;
+      @HiveField(9) final int discountPercent,
+      @HiveField(10) final String? color}) = _$CartItemModelImpl;
   const _CartItemModel._() : super._();
 
   factory _CartItemModel.fromJson(Map<String, dynamic> json) =
@@ -377,6 +397,9 @@ abstract class _CartItemModel extends CartItemModel {
   @override
   @HiveField(9)
   int get discountPercent;
+  @override
+  @HiveField(10)
+  String? get color;
 
   /// Create a copy of CartItemModel
   /// with the given fields replaced by the non-null parameter values.

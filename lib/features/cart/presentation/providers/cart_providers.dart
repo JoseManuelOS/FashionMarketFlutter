@@ -53,7 +53,7 @@ class CartNotifier extends _$CartNotifier {
   /// Añadir producto al carrito
   void addItem(CartItemModel item) {
     final existingIndex = state.indexWhere(
-      (i) => i.productId == item.productId && i.size == item.size,
+      (i) => i.productId == item.productId && i.size == item.size && i.color == item.color,
     );
 
     if (existingIndex >= 0) {
@@ -76,22 +76,22 @@ class CartNotifier extends _$CartNotifier {
   }
 
   /// Eliminar item del carrito
-  void removeItem(String productId, String size) {
+  void removeItem(String productId, String size, [String? color]) {
     state = state
-        .where((item) => !(item.productId == productId && item.size == size))
+        .where((item) => !(item.productId == productId && item.size == size && item.color == color))
         .toList();
     _saveToStorage();
   }
 
   /// Actualizar cantidad de un item
-  void updateQuantity(String productId, String size, int quantity) {
+  void updateQuantity(String productId, String size, int quantity, [String? color]) {
     if (quantity <= 0) {
-      removeItem(productId, size);
+      removeItem(productId, size, color);
       return;
     }
 
     final index = state.indexWhere(
-      (i) => i.productId == productId && i.size == size,
+      (i) => i.productId == productId && i.size == size && i.color == color,
     );
 
     if (index >= 0) {
@@ -106,21 +106,21 @@ class CartNotifier extends _$CartNotifier {
   }
 
   /// Incrementar cantidad
-  void incrementQuantity(String productId, String size) {
+  void incrementQuantity(String productId, String size, [String? color]) {
     final item = state.firstWhere(
-      (i) => i.productId == productId && i.size == size,
+      (i) => i.productId == productId && i.size == size && i.color == color,
       orElse: () => throw Exception('Item not found'),
     );
-    updateQuantity(productId, size, item.quantity + 1);
+    updateQuantity(productId, size, item.quantity + 1, color);
   }
 
   /// Decrementar cantidad
-  void decrementQuantity(String productId, String size) {
+  void decrementQuantity(String productId, String size, [String? color]) {
     final item = state.firstWhere(
-      (i) => i.productId == productId && i.size == size,
+      (i) => i.productId == productId && i.size == size && i.color == color,
       orElse: () => throw Exception('Item not found'),
     );
-    updateQuantity(productId, size, item.quantity - 1);
+    updateQuantity(productId, size, item.quantity - 1, color);
   }
 
   /// Vaciar carrito

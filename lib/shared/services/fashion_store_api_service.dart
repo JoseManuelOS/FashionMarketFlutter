@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,10 +34,20 @@ class FashionStoreApiService {
 
   /// Obtiene stock por talla de un producto desde el backend
   /// Retorna { productId, stockBySize: { "S": 10, "M": 5 }, totalStock: 15 }
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> getStockBySize({
     required String productId,
     String? color,
   }) async {
+    if (kIsWeb) {
+      return _callPublicRelay(
+        action: 'stock',
+        body: {
+          'productId': productId,
+          if (color != null && color.isNotEmpty) 'color': color,
+        },
+      );
+    }
     final params = <String, String>{'productId': productId};
     if (color != null && color.isNotEmpty) params['color'] = color;
     final uri = Uri.parse('$_baseUrl/api/products/stock')
@@ -57,6 +68,7 @@ class FashionStoreApiService {
 
   /// Crea una sesión de Stripe Checkout
   /// Retorna { sessionId, url } donde url es la URL de Stripe para pagar
+  /// Usa siempre el relay para garantizar autenticación correcta en todas las plataformas.
   static Future<Map<String, dynamic>> createCheckoutSession({
     required List<Map<String, dynamic>> items,
     required String customerEmail,
@@ -67,40 +79,65 @@ class FashionStoreApiService {
     int? shippingMethodId,
     double shippingCost = 0,
   }) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/api/checkout/create-session'),
-      headers: _headers,
-      body: jsonEncode({
-        'items': items,
-        'customerEmail': customerEmail,
-        'customerPhone': customerPhone,
-        'customerName': customerName,
-        'shippingAddress': shippingAddress,
-        'discount': discount,
-        'shippingMethodId': shippingMethodId,
-        'shippingCost': shippingCost,
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    // Construir URLs de éxito/cancelación según plataforma
+    // El backend de FashionStore las necesita para crear la sesión de Stripe
+    final String successUrl;
+    final String cancelUrl;
+    if (kIsWeb) {
+      final origin = Uri.base.origin;
+      successUrl = '$origin/checkout/success';
+      cancelUrl = '$origin/checkout';
     } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Error al crear sesión de pago');
+      successUrl = 'io.supabase.fashionmarket://checkout/success';
+      cancelUrl = 'io.supabase.fashionmarket://checkout';
     }
+
+    final body = {
+      'items': items,
+      'customerEmail': customerEmail,
+      'customerPhone': customerPhone,
+      'customerName': customerName,
+      'shippingAddress': shippingAddress,
+      'discount': discount,
+      'shippingMethodId': shippingMethodId,
+      'shippingCost': shippingCost,
+      'successUrl': successUrl,
+      'cancelUrl': cancelUrl,
+    };
+
+    // Usar siempre el relay (autentica con JWT en todas las plataformas)
+    final result = await _callUserRelay(action: 'checkout', body: body);
+    debugPrint('[Checkout] Respuesta del relay: $result');
+
+    final url = result['url'] as String?;
+    if (result.containsKey('sessionId') && url != null && url.startsWith('http')) {
+      return result;
+    }
+
+    // Mostrar la respuesta completa para diagnosticar el problema
+    final error = result['error'] as String?;
+    throw Exception(error ?? 'Respuesta inesperada del servidor: $result');
   }
 
   /// Verifica una sesión de Stripe después del pago
   /// Retorna { success, orderId }
+  /// Usa siempre el relay para garantizar autenticación correcta.
   static Future<Map<String, dynamic>> verifyCheckoutSession({
     required String sessionId,
   }) async {
+    final result = await _callUserRelay(
+      action: 'verify-checkout',
+      body: {'sessionId': sessionId},
+    );
+    if (result.containsKey('success') || result.containsKey('orderId')) {
+      return result;
+    }
+    // Fallback directo
     final response = await http.post(
       Uri.parse('$_baseUrl/api/checkout/verify-session'),
-      headers: _headers,
+      headers: _authHeaders,
       body: jsonEncode({'sessionId': sessionId}),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -310,6 +347,10 @@ class FashionStoreApiService {
   // ADMIN — PEDIDOS (con email automático)
   // ════════════════════════════════════════════════════════════════════════
 
+  /// URL de la Edge Function relay de Supabase
+  static const String _relayUrl =
+      '${AppConstants.supabaseUrl}/functions/v1/orders-relay';
+
   /// Headers con cookie de admin para APIs protegidas del backend
   static Map<String, String> _adminHeaders(String adminEmail) {
     final session = jsonEncode({
@@ -323,31 +364,101 @@ class FashionStoreApiService {
     };
   }
 
+  /// Envía una acción pública (sin auth) a través del relay de Supabase (para Web/CORS)
+  static Future<Map<String, dynamic>> _callPublicRelay({
+    required String action,
+    required Map<String, dynamic> body,
+  }) async {
+    final response = await http.post(
+      Uri.parse(_relayUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': AppConstants.supabaseAnonKey,
+      },
+      body: jsonEncode({'action': action, ...body}),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Relay error: ${response.statusCode}');
+    }
+  }
+
+  /// Envía una acción de usuario a través del relay de Supabase (para Web/CORS)
+  static Future<Map<String, dynamic>> _callUserRelay({
+    required String action,
+    required Map<String, dynamic> body,
+  }) async {
+    final supabaseSession = Supabase.instance.client.auth.currentSession;
+    final response = await http.post(
+      Uri.parse(_relayUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        if (supabaseSession != null)
+          'Authorization': 'Bearer ${supabaseSession.accessToken}',
+        'apikey': AppConstants.supabaseAnonKey,
+      },
+      body: jsonEncode({'action': action, ...body}),
+    );
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Envía una acción admin a través del relay de Supabase (para Web/CORS)
+  static Future<Map<String, dynamic>> _callAdminRelay({
+    required String action,
+    required Map<String, dynamic> body,
+  }) async {
+    final supabaseSession = Supabase.instance.client.auth.currentSession;
+    final response = await http.post(
+      Uri.parse(_relayUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        if (supabaseSession != null)
+          'Authorization': 'Bearer ${supabaseSession.accessToken}',
+        'apikey': AppConstants.supabaseAnonKey,
+      },
+      body: jsonEncode({'action': action, ...body}),
+    );
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   /// Cancelar pedido desde admin (procesa reembolso + envía email de cancelación)
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> adminCancelOrder({
     required String orderId,
     required String adminEmail,
   }) async {
+    if (kIsWeb) {
+      return _callAdminRelay(
+        action: 'admin-cancel',
+        body: {'orderId': orderId, 'adminEmail': adminEmail},
+      );
+    }
     final response = await http.post(
       Uri.parse('$_baseUrl/api/orders/admin-cancel'),
       headers: _adminHeaders(adminEmail),
       body: jsonEncode({'orderId': orderId}),
     );
-
     return jsonDecode(response.body);
   }
 
-  /// Aceptar devolución desde admin (procesa reembolso + envía email)
+  /// Aceptar devolución desde admin (procesa reembolso + envía email con facturas)
+  /// En Web usa el relay de Supabase para evitar CORS.
   static Future<Map<String, dynamic>> acceptReturn({
     required String orderId,
     required String adminEmail,
   }) async {
+    if (kIsWeb) {
+      return _callAdminRelay(
+        action: 'accept-return',
+        body: {'orderId': orderId, 'adminEmail': adminEmail},
+      );
+    }
     final response = await http.post(
       Uri.parse('$_baseUrl/api/orders/accept-return'),
       headers: _adminHeaders(adminEmail),
       body: jsonEncode({'orderId': orderId}),
     );
-
     return jsonDecode(response.body);
   }
 

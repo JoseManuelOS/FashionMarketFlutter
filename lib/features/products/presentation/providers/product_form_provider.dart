@@ -69,15 +69,23 @@ class ProductForm extends _$ProductForm {
         stock: stock,
       );
 
-      final createdProduct = await repository.createProduct(newProduct);
+      final result = await repository.createProduct(newProduct);
 
-      state = state.copyWith(
-        status: ProductFormStatus.success,
-        product: createdProduct,
+      result.fold(
+        (failure) => state = state.copyWith(
+          status: ProductFormStatus.error,
+          errorMessage: failure.message,
+        ),
+        (createdProduct) {
+          state = state.copyWith(
+            status: ProductFormStatus.success,
+            product: createdProduct,
+          );
+          ref.invalidate(productListProvider);
+        },
       );
+      return;
 
-      // Invalida la lista de productos para que se recargue
-      ref.invalidate(productListProvider);
     } catch (e) {
       state = state.copyWith(
         status: ProductFormStatus.error,
@@ -92,16 +100,23 @@ class ProductForm extends _$ProductForm {
 
     try {
       final repository = ref.read(productRepositoryProvider);
-      final updatedProduct = await repository.updateProduct(product);
+      final result = await repository.updateProduct(product);
 
-      state = state.copyWith(
-        status: ProductFormStatus.success,
-        product: updatedProduct,
+      result.fold(
+        (failure) => state = state.copyWith(
+          status: ProductFormStatus.error,
+          errorMessage: failure.message,
+        ),
+        (updatedProduct) {
+          state = state.copyWith(
+            status: ProductFormStatus.success,
+            product: updatedProduct,
+          );
+          ref.invalidate(productListProvider);
+          ref.invalidate(productDetailProvider(product.id));
+        },
       );
-
-      // Invalida los providers relacionados
-      ref.invalidate(productListProvider);
-      ref.invalidate(productDetailProvider(product.id));
+      return;
     } catch (e) {
       state = state.copyWith(
         status: ProductFormStatus.error,
@@ -110,18 +125,25 @@ class ProductForm extends _$ProductForm {
     }
   }
 
-  /// Elimina un producto
+  /// Desactiva un producto (soft delete)
   Future<void> deleteProduct(String productId) async {
     state = state.copyWith(status: ProductFormStatus.loading);
 
     try {
       final repository = ref.read(productRepositoryProvider);
-      await repository.deleteProduct(productId);
+      final result = await repository.deleteProduct(productId);
 
-      state = state.copyWith(status: ProductFormStatus.success);
-
-      // Invalida la lista de productos
-      ref.invalidate(productListProvider);
+      result.fold(
+        (failure) => state = state.copyWith(
+          status: ProductFormStatus.error,
+          errorMessage: failure.message,
+        ),
+        (_) {
+          state = state.copyWith(status: ProductFormStatus.success);
+          ref.invalidate(productListProvider);
+        },
+      );
+      return;
     } catch (e) {
       state = state.copyWith(
         status: ProductFormStatus.error,

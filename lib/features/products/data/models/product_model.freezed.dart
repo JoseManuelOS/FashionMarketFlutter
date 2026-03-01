@@ -28,6 +28,10 @@ mixin _$ProductModel {
   int? get discountPercent => throw _privateConstructorUsedError;
   List<String> get sizes => throw _privateConstructorUsedError;
   Map<String, int>? get stockBySize => throw _privateConstructorUsedError;
+
+  /// Stock por color y talla: { "Rojo": { "M": 5, "L": 3 }, "Azul": { "M": 2 } }
+  Map<String, Map<String, int>>? get stockByColorSize =>
+      throw _privateConstructorUsedError;
   bool get active => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
   DateTime? get updatedAt => throw _privateConstructorUsedError; // Relaciones
@@ -61,6 +65,7 @@ abstract class $ProductModelCopyWith<$Res> {
       int? discountPercent,
       List<String> sizes,
       Map<String, int>? stockBySize,
+      Map<String, Map<String, int>>? stockByColorSize,
       bool active,
       DateTime? createdAt,
       DateTime? updatedAt,
@@ -98,6 +103,7 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
     Object? discountPercent = freezed,
     Object? sizes = null,
     Object? stockBySize = freezed,
+    Object? stockByColorSize = freezed,
     Object? active = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -154,6 +160,10 @@ class _$ProductModelCopyWithImpl<$Res, $Val extends ProductModel>
           ? _value.stockBySize
           : stockBySize // ignore: cast_nullable_to_non_nullable
               as Map<String, int>?,
+      stockByColorSize: freezed == stockByColorSize
+          ? _value.stockByColorSize
+          : stockByColorSize // ignore: cast_nullable_to_non_nullable
+              as Map<String, Map<String, int>>?,
       active: null == active
           ? _value.active
           : active // ignore: cast_nullable_to_non_nullable
@@ -217,6 +227,7 @@ abstract class _$$ProductModelImplCopyWith<$Res>
       int? discountPercent,
       List<String> sizes,
       Map<String, int>? stockBySize,
+      Map<String, Map<String, int>>? stockByColorSize,
       bool active,
       DateTime? createdAt,
       DateTime? updatedAt,
@@ -253,6 +264,7 @@ class __$$ProductModelImplCopyWithImpl<$Res>
     Object? discountPercent = freezed,
     Object? sizes = null,
     Object? stockBySize = freezed,
+    Object? stockByColorSize = freezed,
     Object? active = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
@@ -309,6 +321,10 @@ class __$$ProductModelImplCopyWithImpl<$Res>
           ? _value._stockBySize
           : stockBySize // ignore: cast_nullable_to_non_nullable
               as Map<String, int>?,
+      stockByColorSize: freezed == stockByColorSize
+          ? _value._stockByColorSize
+          : stockByColorSize // ignore: cast_nullable_to_non_nullable
+              as Map<String, Map<String, int>>?,
       active: null == active
           ? _value.active
           : active // ignore: cast_nullable_to_non_nullable
@@ -353,6 +369,7 @@ class _$ProductModelImpl extends _ProductModel {
       this.discountPercent,
       final List<String> sizes = const <String>[],
       final Map<String, int>? stockBySize,
+      final Map<String, Map<String, int>>? stockByColorSize,
       this.active = true,
       this.createdAt,
       this.updatedAt,
@@ -361,6 +378,7 @@ class _$ProductModelImpl extends _ProductModel {
       final List<String> tags = const <String>[]})
       : _sizes = sizes,
         _stockBySize = stockBySize,
+        _stockByColorSize = stockByColorSize,
         _images = images,
         _tags = tags,
         super._();
@@ -406,6 +424,19 @@ class _$ProductModelImpl extends _ProductModel {
     return EqualUnmodifiableMapView(value);
   }
 
+  /// Stock por color y talla: { "Rojo": { "M": 5, "L": 3 }, "Azul": { "M": 2 } }
+  final Map<String, Map<String, int>>? _stockByColorSize;
+
+  /// Stock por color y talla: { "Rojo": { "M": 5, "L": 3 }, "Azul": { "M": 2 } }
+  @override
+  Map<String, Map<String, int>>? get stockByColorSize {
+    final value = _stockByColorSize;
+    if (value == null) return null;
+    if (_stockByColorSize is EqualUnmodifiableMapView) return _stockByColorSize;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   @override
   @JsonKey()
   final bool active;
@@ -436,7 +467,7 @@ class _$ProductModelImpl extends _ProductModel {
 
   @override
   String toString() {
-    return 'ProductModel(id: $id, name: $name, slug: $slug, description: $description, price: $price, stock: $stock, categoryId: $categoryId, isOffer: $isOffer, originalPrice: $originalPrice, discountPercent: $discountPercent, sizes: $sizes, stockBySize: $stockBySize, active: $active, createdAt: $createdAt, updatedAt: $updatedAt, category: $category, images: $images, tags: $tags)';
+    return 'ProductModel(id: $id, name: $name, slug: $slug, description: $description, price: $price, stock: $stock, categoryId: $categoryId, isOffer: $isOffer, originalPrice: $originalPrice, discountPercent: $discountPercent, sizes: $sizes, stockBySize: $stockBySize, stockByColorSize: $stockByColorSize, active: $active, createdAt: $createdAt, updatedAt: $updatedAt, category: $category, images: $images, tags: $tags)';
   }
 
   @override
@@ -461,6 +492,8 @@ class _$ProductModelImpl extends _ProductModel {
             const DeepCollectionEquality().equals(other._sizes, _sizes) &&
             const DeepCollectionEquality()
                 .equals(other._stockBySize, _stockBySize) &&
+            const DeepCollectionEquality()
+                .equals(other._stockByColorSize, _stockByColorSize) &&
             (identical(other.active, active) || other.active == active) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
@@ -473,26 +506,28 @@ class _$ProductModelImpl extends _ProductModel {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      name,
-      slug,
-      description,
-      price,
-      stock,
-      categoryId,
-      isOffer,
-      originalPrice,
-      discountPercent,
-      const DeepCollectionEquality().hash(_sizes),
-      const DeepCollectionEquality().hash(_stockBySize),
-      active,
-      createdAt,
-      updatedAt,
-      category,
-      const DeepCollectionEquality().hash(_images),
-      const DeepCollectionEquality().hash(_tags));
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        name,
+        slug,
+        description,
+        price,
+        stock,
+        categoryId,
+        isOffer,
+        originalPrice,
+        discountPercent,
+        const DeepCollectionEquality().hash(_sizes),
+        const DeepCollectionEquality().hash(_stockBySize),
+        const DeepCollectionEquality().hash(_stockByColorSize),
+        active,
+        createdAt,
+        updatedAt,
+        category,
+        const DeepCollectionEquality().hash(_images),
+        const DeepCollectionEquality().hash(_tags)
+      ]);
 
   /// Create a copy of ProductModel
   /// with the given fields replaced by the non-null parameter values.
@@ -517,6 +552,7 @@ abstract class _ProductModel extends ProductModel {
       final int? discountPercent,
       final List<String> sizes,
       final Map<String, int>? stockBySize,
+      final Map<String, Map<String, int>>? stockByColorSize,
       final bool active,
       final DateTime? createdAt,
       final DateTime? updatedAt,
@@ -549,6 +585,10 @@ abstract class _ProductModel extends ProductModel {
   List<String> get sizes;
   @override
   Map<String, int>? get stockBySize;
+
+  /// Stock por color y talla: { "Rojo": { "M": 5, "L": 3 }, "Azul": { "M": 2 } }
+  @override
+  Map<String, Map<String, int>>? get stockByColorSize;
   @override
   bool get active;
   @override

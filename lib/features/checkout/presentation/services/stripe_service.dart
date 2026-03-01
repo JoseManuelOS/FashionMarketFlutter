@@ -36,6 +36,7 @@ class StripeService {
         'price': item.price,
         'quantity': item.quantity,
         'size': item.size,
+        'color': item.color ?? '',
         'image': item.imageUrl,
       }).toList();
 
@@ -92,6 +93,7 @@ class StripeService {
       return {
         'success': result['success'] == true,
         'orderId': result['orderId'],
+        'orderNumber': result['orderNumber'],
       };
     } catch (e) {
       return {

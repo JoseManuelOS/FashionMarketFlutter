@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 /// Tema de la aplicación - Diseño Oscuro Neón
@@ -170,52 +171,54 @@ class AppTheme {
       ),
 
       // ═══════════════════════════════════════════════════════════════════════
-      // TEXTOS
+      // TEXTOS — Playfair Display (headings) + Lato (body)
       // ═══════════════════════════════════════════════════════════════════════
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
+      textTheme: TextTheme(
+        // Headings — Playfair Display (Serif)
+        displayLarge: GoogleFonts.playfairDisplay(
           color: AppColors.textPrimary,
           fontSize: 32,
           fontWeight: FontWeight.bold,
         ),
-        displayMedium: TextStyle(
+        displayMedium: GoogleFonts.playfairDisplay(
           color: AppColors.textPrimary,
           fontSize: 28,
           fontWeight: FontWeight.bold,
         ),
-        displaySmall: TextStyle(
+        displaySmall: GoogleFonts.playfairDisplay(
           color: AppColors.textPrimary,
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
-        headlineMedium: TextStyle(
+        headlineMedium: GoogleFonts.playfairDisplay(
           color: AppColors.textPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
-        headlineSmall: TextStyle(
+        headlineSmall: GoogleFonts.playfairDisplay(
           color: AppColors.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        titleLarge: TextStyle(
+        // Body & Labels — Lato (Sans-serif)
+        titleLarge: GoogleFonts.lato(
           color: AppColors.textPrimary,
           fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: GoogleFonts.lato(
           color: AppColors.textSecondary,
           fontSize: 16,
         ),
-        bodyMedium: TextStyle(
+        bodyMedium: GoogleFonts.lato(
           color: AppColors.textSecondary,
           fontSize: 14,
         ),
-        bodySmall: TextStyle(
+        bodySmall: GoogleFonts.lato(
           color: AppColors.textMuted,
           fontSize: 12,
         ),
-        labelLarge: TextStyle(
+        labelLarge: GoogleFonts.lato(
           color: AppColors.textPrimary,
           fontSize: 14,
           fontWeight: FontWeight.w600,
