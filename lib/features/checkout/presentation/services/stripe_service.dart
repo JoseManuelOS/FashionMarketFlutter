@@ -48,7 +48,15 @@ class StripeService {
               // Key format: "S" (no color) or "S|red" (with color)
               if (keyStr.contains('|')) {
                 final parts = keyStr.split('|');
-                sizeColorMap[parts[0]] = parts[1]; // size → variantColor
+                final size = parts[0];
+                final color = parts[1];
+                // Si ya existe otra entrada para esta talla, guardar como lista
+                // usando separador ; para no perder colores alternativos
+                if (sizeColorMap.containsKey(size)) {
+                  sizeColorMap[size] = '${sizeColorMap[size]};$color';
+                } else {
+                  sizeColorMap[size] = color;
+                }
               } else {
                 sizeColorMap[keyStr] = ''; // size → '' (empty color)
               }
@@ -62,8 +70,20 @@ class StripeService {
       }
 
       final sizeMap = productSizeColorMap[item.productId]!;
-      // Use the variant color for this size, fallback to cart color
-      resolved[item.uniqueId] = sizeMap[item.size] ?? item.color ?? '';
+      final variantColors = sizeMap[item.size] ?? item.color ?? '';
+      // Si hay múltiples colores (separados por ;), buscar el que coincida
+      // con el color del carrito. Si no coincide ninguno, usar el primero.
+      if (variantColors.contains(';')) {
+        final colors = variantColors.split(';');
+        final cartColor = (item.color ?? '').toLowerCase();
+        final match = colors.firstWhere(
+          (c) => c.toLowerCase() == cartColor,
+          orElse: () => colors.first,
+        );
+        resolved[item.uniqueId] = match;
+      } else {
+        resolved[item.uniqueId] = variantColors;
+      }
     }
 
     return resolved;

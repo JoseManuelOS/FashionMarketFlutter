@@ -600,6 +600,14 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         if (result['success'] != true) {
           throw Exception(result['error'] ?? 'Error al cancelar');
         }
+        // Persistir motivo de cancelación (FashionStore no lo guarda)
+        try {
+          final supabase = ref.read(supabaseProvider);
+          await supabase
+              .from('orders')
+              .update({'cancellation_reason': 'Cancelado por el administrador'})
+              .eq('id', orderId);
+        } catch (_) {}
         _invalidateAllOrders();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1857,10 +1865,11 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
               const SizedBox(height: 24),
 
-              // === Sección de Envío ===
-              _buildShippingSection(status, hasTracking),
-
-              const SizedBox(height: 24),
+              // === Sección de Envío (oculta si está cancelado) ===
+              if (status != 'cancelled') ...[
+                _buildShippingSection(status, hasTracking),
+                const SizedBox(height: 24),
+              ],
 
               // === Cliente ===
               _buildSectionTitle('Cliente'),
@@ -2027,6 +2036,85 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
     // Estados destructivos que requieren confirmación inmediata (generan reembolsos)
     const destructiveStatuses = {'cancelled', 'returned'};
+
+    // ── Pedido cancelado: solo lectura ──
+    if (currentStatus == 'cancelled') {
+      final cancellationReason = widget.order['cancellation_reason'] as String?;
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D0D14),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionTitle('Estado del pedido'),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cancel, color: Colors.red, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Pedido cancelado',
+                        style: TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  if (cancellationReason != null && cancellationReason.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.withValues(alpha: 0.15)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Motivo de la cancelacion:', style: TextStyle(color: Colors.amber[300], fontSize: 12, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Text(
+                            cancellationReason,
+                            style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (cancellationReason == null || cancellationReason.isEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'No se proporcionó motivo de cancelación.',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Este pedido no se puede modificar.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),

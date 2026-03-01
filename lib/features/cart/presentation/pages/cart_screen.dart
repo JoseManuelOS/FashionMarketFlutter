@@ -378,11 +378,24 @@ class _CartItemCardState extends ConsumerState<_CartItemCard> {
     final item = widget.item;
     setState(() => _isCheckingStock = true);
     try {
-      final result = await FashionStoreApiService.getStockBySize(
+      var result = await FashionStoreApiService.getStockBySize(
         productId: item.productId,
         color: item.color,
       );
-      final stockBySize = result['stockBySize'] as Map?;
+      var stockBySize = result['stockBySize'] as Map?;
+
+      // Si el filtro por color no devolvió variantes, reintentar sin color.
+      // Esto ocurre cuando product_variants.color está vacío ('') pero
+      // el carrito usa nombres de color de product_images (ej. "Rojo").
+      if (item.color != null &&
+          item.color!.isNotEmpty &&
+          (stockBySize == null || stockBySize.isEmpty)) {
+        result = await FashionStoreApiService.getStockBySize(
+          productId: item.productId,
+        );
+        stockBySize = result['stockBySize'] as Map?;
+      }
+
       final available = stockBySize != null
           ? (stockBySize[item.size] as num?)?.toInt() ?? 0
           : (result['totalStock'] as num?)?.toInt() ?? 0;

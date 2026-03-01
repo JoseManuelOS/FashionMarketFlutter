@@ -21,7 +21,12 @@ class SizeSelector extends StatelessWidget {
 
   SizeStockStatus _getSizeStockStatus(String size) {
     final stock = stockBySize[size];
-    if (stock == null) return SizeStockStatus.unknown;
+    if (stock == null) {
+      // Si tenemos datos de stock para otras tallas pero no para esta,
+      // significa que esta talla no tiene variante → agotada
+      if (stockBySize.isNotEmpty) return SizeStockStatus.out;
+      return SizeStockStatus.unknown;
+    }
     if (stock <= 0) return SizeStockStatus.out;
     if (stock <= 3) return SizeStockStatus.low;
     return SizeStockStatus.available;

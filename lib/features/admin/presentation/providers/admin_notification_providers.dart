@@ -44,6 +44,13 @@ class NotificationSummaryNotifier extends StateNotifier<AsyncValue<NotificationS
     });
   }
 
+  /// Resetea el resumen a ceros (cuando se marcan todas como leidas)
+  void resetToZero() {
+    state = const AsyncValue.data(NotificationSummary.empty());
+    // Reiniciar el timer para que no sobreescriba inmediatamente
+    _startAutoRefresh();
+  }
+
   /// Recarga manualmente
   Future<void> refresh() async {
     state = const AsyncValue.loading();
@@ -114,6 +121,8 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<AdminNotificat
       }).toList();
       state = AsyncValue.data(updatedNotifications);
     }
+    // Resetear el contador del badge a cero
+    _ref.read(notificationSummaryProvider.notifier).resetToZero();
   }
 }
 

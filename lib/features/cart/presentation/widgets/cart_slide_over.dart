@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../../config/theme/app_colors.dart';
 import '../../../../config/router/app_router.dart';
+import '../../../../shared/services/fashion_store_api_service.dart';
 import '../../data/models/cart_item_model.dart';
 import '../providers/cart_providers.dart';
 
@@ -292,13 +293,76 @@ class CartSlideOver extends ConsumerWidget {
 }
 
 /// Tile de item del carrito
-class _CartItemTile extends ConsumerWidget {
+class _CartItemTile extends ConsumerStatefulWidget {
   final CartItemModel item;
 
   const _CartItemTile({required this.item});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_CartItemTile> createState() => _CartItemTileState();
+}
+
+class _CartItemTileState extends ConsumerState<_CartItemTile> {
+  bool _isCheckingStock = false;
+
+  /// Valida stock en tiempo real antes de incrementar cantidad
+  Future<void> _handleIncrement() async {
+    final item = widget.item;
+    setState(() => _isCheckingStock = true);
+    try {
+      var result = await FashionStoreApiService.getStockBySize(
+        productId: item.productId,
+        color: item.color,
+      );
+      var stockBySize = result['stockBySize'] as Map?;
+
+      // Si el filtro por color no devolvio variantes, reintentar sin color.
+      if (item.color != null &&
+          item.color!.isNotEmpty &&
+          (stockBySize == null || stockBySize.isEmpty)) {
+        result = await FashionStoreApiService.getStockBySize(
+          productId: item.productId,
+        );
+        stockBySize = result['stockBySize'] as Map?;
+      }
+
+      final available = stockBySize != null
+          ? (stockBySize[item.size] as num?)?.toInt() ?? 0
+          : (result['totalStock'] as num?)?.toInt() ?? 0;
+
+      if (item.quantity + 1 > available) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Solo hay $available unidades de talla ${item.size} disponibles',
+              ),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      ref
+          .read(cartNotifierProvider.notifier)
+          .incrementQuantity(item.productId, item.size, item.color);
+    } catch (_) {
+      // Si falla la consulta de stock, incrementar sin validacion
+      ref
+          .read(cartNotifierProvider.notifier)
+          .incrementQuantity(item.productId, item.size, item.color);
+    } finally {
+      if (mounted) setState(() => _isCheckingStock = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -431,11 +495,9 @@ class _CartItemTile extends ConsumerWidget {
                     ),
                     _QuantityButton(
                       icon: Icons.add,
-                      onPressed: () {
-                        ref
-                            .read(cartNotifierProvider.notifier)
-                            .incrementQuantity(item.productId, item.size, item.color);
-                      },
+                      onPressed: _isCheckingStock
+                          ? () {}
+                          : _handleIncrement,
                     ),
                     const Spacer(),
                     // Delete button

@@ -73,24 +73,50 @@ class OrderRepository {
     required String orderId,
     required String reason,
   }) async {
+    final effectiveReason =
+        reason.isNotEmpty ? reason : 'Cancelado por el cliente';
+
     if (kIsWeb) {
       final result = await _callRelay(
         action: 'cancel',
-        body: {'orderId': orderId, 'reason': reason},
+        body: {'orderId': orderId, 'reason': effectiveReason},
       );
-      return result['success'] == true;
+      if (result['success'] == true) {
+        // Persistir motivo en Supabase (FashionStore no lo guarda)
+        try {
+          await _supabase
+              .from('orders')
+              .update({'cancellation_reason': effectiveReason})
+              .eq('id', orderId);
+        } catch (_) {}
+        return true;
+      }
+      return false;
     }
     try {
       final result = await FashionStoreApiService.cancelOrder(
         orderId: orderId,
-        reason: reason,
+        reason: effectiveReason,
       );
-      return result['success'] == true;
+      if (result['success'] == true) {
+        // Persistir motivo en Supabase (FashionStore no lo guarda)
+        try {
+          await _supabase
+              .from('orders')
+              .update({'cancellation_reason': effectiveReason})
+              .eq('id', orderId);
+        } catch (_) {}
+        return true;
+      }
+      return false;
     } catch (_) {
-      // Fallback: actualiza estado si la API no responde
+      // Fallback: actualiza estado + motivo si la API no responde
       await _supabase
           .from('orders')
-          .update({'status': 'cancelled'})
+          .update({
+            'status': 'cancelled',
+            'cancellation_reason': effectiveReason,
+          })
           .eq('id', orderId);
       return true;
     }
@@ -100,31 +126,57 @@ class OrderRepository {
   /// Solicita devolución (actualiza estado + emails al cliente y admin).
   /// • Web    → Edge Function relay
   /// • Móvil  → API directa de FashionStore
+  ///
+  /// Además persiste `return_reason` directamente en Supabase porque
+  /// el endpoint de FashionStore (request-return.ts) no lo almacena.
   Future<bool> requestReturn({
     required String orderId,
     required String reason,
   }) async {
+    final effectiveReason =
+        reason.isEmpty ? 'Devolución solicitada por el cliente' : reason;
+
+    bool success = false;
+
     if (kIsWeb) {
       final result = await _callRelay(
         action: 'request-return',
-        body: {'orderId': orderId, 'reason': reason},
+        body: {'orderId': orderId, 'reason': effectiveReason},
       );
-      return result['success'] == true;
+      success = result['success'] == true;
+    } else {
+      try {
+        final result = await FashionStoreApiService.requestReturn(
+          orderId: orderId,
+          reason: effectiveReason,
+        );
+        success = result['success'] == true;
+      } catch (_) {
+        // Fallback: actualiza estado si la API no responde
+        await _supabase.from('orders').update({
+          'status': 'return_requested',
+          'return_reason': effectiveReason,
+        }).eq('id', orderId);
+        return true;
+      }
     }
-    try {
-      final result = await FashionStoreApiService.requestReturn(
-        orderId: orderId,
-        reason: reason,
-      );
-      return result['success'] == true;
-    } catch (_) {
-      // Fallback: actualiza estado si la API no responde
-      await _supabase
-          .from('orders')
-          .update({'status': 'return_requested'})
-          .eq('id', orderId);
-      return true;
+
+    // Persistir return_reason directamente en Supabase.
+    // El backend de FashionStore actualiza status pero NO guarda el motivo,
+    // así que lo escribimos aquí para que el admin lo vea.
+    if (success) {
+      try {
+        await _supabase.from('orders').update({
+          'return_reason': effectiveReason,
+        }).eq('id', orderId);
+      } catch (e) {
+        // No bloquear si falla la escritura del motivo;
+        // el status ya fue actualizado por el backend.
+        debugPrint('No se pudo guardar return_reason: $e');
+      }
     }
+
+    return success;
   }
 
   // ─── requestInvoice ──────────────────────────────────────────────────

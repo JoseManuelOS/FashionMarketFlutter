@@ -308,6 +308,8 @@ BEGIN
       'tracking_url', o.tracking_url,
       'shipped_at', o.shipped_at,
       'delivered_at', o.delivered_at,
+      'return_reason', o.return_reason,
+      'cancellation_reason', o.cancellation_reason,
       'created_at', o.created_at,
       'updated_at', o.updated_at,
       'items', COALESCE((
