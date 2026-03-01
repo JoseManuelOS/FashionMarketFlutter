@@ -721,6 +721,7 @@ mixin _$OrderItemModel {
   String? get color => throw _privateConstructorUsedError;
   double get priceAtPurchase => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
+  int get alreadyReturned => throw _privateConstructorUsedError;
 
   /// Create a copy of OrderItemModel
   /// with the given fields replaced by the non-null parameter values.
@@ -746,7 +747,8 @@ abstract class $OrderItemModelCopyWith<$Res> {
       String size,
       String? color,
       double priceAtPurchase,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      int alreadyReturned});
 }
 
 /// @nodoc
@@ -775,6 +777,7 @@ class _$OrderItemModelCopyWithImpl<$Res, $Val extends OrderItemModel>
     Object? color = freezed,
     Object? priceAtPurchase = null,
     Object? createdAt = freezed,
+    Object? alreadyReturned = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -821,6 +824,10 @@ class _$OrderItemModelCopyWithImpl<$Res, $Val extends OrderItemModel>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      alreadyReturned: null == alreadyReturned
+          ? _value.alreadyReturned
+          : alreadyReturned // ignore: cast_nullable_to_non_nullable
+              as int,
     ) as $Val);
   }
 }
@@ -844,7 +851,8 @@ abstract class _$$OrderItemModelImplCopyWith<$Res>
       String size,
       String? color,
       double priceAtPurchase,
-      DateTime? createdAt});
+      DateTime? createdAt,
+      int alreadyReturned});
 }
 
 /// @nodoc
@@ -871,6 +879,7 @@ class __$$OrderItemModelImplCopyWithImpl<$Res>
     Object? color = freezed,
     Object? priceAtPurchase = null,
     Object? createdAt = freezed,
+    Object? alreadyReturned = null,
   }) {
     return _then(_$OrderItemModelImpl(
       id: null == id
@@ -917,6 +926,10 @@ class __$$OrderItemModelImplCopyWithImpl<$Res>
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      alreadyReturned: null == alreadyReturned
+          ? _value.alreadyReturned
+          : alreadyReturned // ignore: cast_nullable_to_non_nullable
+              as int,
     ));
   }
 }
@@ -935,7 +948,8 @@ class _$OrderItemModelImpl extends _OrderItemModel {
       required this.size,
       this.color,
       required this.priceAtPurchase,
-      this.createdAt})
+      this.createdAt,
+      this.alreadyReturned = 0})
       : super._();
 
   @override
@@ -960,10 +974,13 @@ class _$OrderItemModelImpl extends _OrderItemModel {
   final double priceAtPurchase;
   @override
   final DateTime? createdAt;
+  @override
+  @JsonKey()
+  final int alreadyReturned;
 
   @override
   String toString() {
-    return 'OrderItemModel(id: $id, orderId: $orderId, productId: $productId, productName: $productName, productSlug: $productSlug, productImage: $productImage, quantity: $quantity, size: $size, color: $color, priceAtPurchase: $priceAtPurchase, createdAt: $createdAt)';
+    return 'OrderItemModel(id: $id, orderId: $orderId, productId: $productId, productName: $productName, productSlug: $productSlug, productImage: $productImage, quantity: $quantity, size: $size, color: $color, priceAtPurchase: $priceAtPurchase, createdAt: $createdAt, alreadyReturned: $alreadyReturned)';
   }
 
   @override
@@ -988,7 +1005,9 @@ class _$OrderItemModelImpl extends _OrderItemModel {
             (identical(other.priceAtPurchase, priceAtPurchase) ||
                 other.priceAtPurchase == priceAtPurchase) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt));
+                other.createdAt == createdAt) &&
+            (identical(other.alreadyReturned, alreadyReturned) ||
+                other.alreadyReturned == alreadyReturned));
   }
 
   @override
@@ -1004,7 +1023,8 @@ class _$OrderItemModelImpl extends _OrderItemModel {
       size,
       color,
       priceAtPurchase,
-      createdAt);
+      createdAt,
+      alreadyReturned);
 
   /// Create a copy of OrderItemModel
   /// with the given fields replaced by the non-null parameter values.
@@ -1028,7 +1048,8 @@ abstract class _OrderItemModel extends OrderItemModel {
       required final String size,
       final String? color,
       required final double priceAtPurchase,
-      final DateTime? createdAt}) = _$OrderItemModelImpl;
+      final DateTime? createdAt,
+      final int alreadyReturned}) = _$OrderItemModelImpl;
   const _OrderItemModel._() : super._();
 
   @override
@@ -1053,6 +1074,8 @@ abstract class _OrderItemModel extends OrderItemModel {
   double get priceAtPurchase;
   @override
   DateTime? get createdAt;
+  @override
+  int get alreadyReturned;
 
   /// Create a copy of OrderItemModel
   /// with the given fields replaced by the non-null parameter values.

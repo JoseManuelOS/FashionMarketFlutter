@@ -56,7 +56,7 @@ class OrderRepository {
 
     final data = await _supabase
         .from('orders')
-        .select('*, items:order_items(*)')
+        .select('*, items:order_items(*, returns:order_item_returns(quantity_returned))')
         .eq('customer_id', _userId!)
         .order('created_at', ascending: false);
 
@@ -136,6 +136,17 @@ class OrderRepository {
     final effectiveReason =
         reason.isEmpty ? 'Devolución solicitada por el cliente' : reason;
 
+    // Persistir return_reason ANTES de llamar a la API/relay.
+    // Lo guardamos primero para que el admin siempre vea los artículos
+    // que el cliente seleccionó, incluso si la API falla después.
+    try {
+      await _supabase.from('orders').update({
+        'return_reason': effectiveReason,
+      }).eq('id', orderId);
+    } catch (e) {
+      debugPrint('No se pudo guardar return_reason (pre-relay): $e');
+    }
+
     bool success = false;
 
     if (kIsWeb) {
@@ -144,6 +155,15 @@ class OrderRepository {
         body: {'orderId': orderId, 'reason': effectiveReason},
       );
       success = result['success'] == true;
+      // Fallback web: si el relay falla, actualizar estado directamente
+      if (!success) {
+        try {
+          await _supabase.from('orders').update({
+            'status': 'return_requested',
+          }).eq('id', orderId);
+          success = true;
+        } catch (_) {}
+      }
     } else {
       try {
         final result = await FashionStoreApiService.requestReturn(
@@ -155,24 +175,8 @@ class OrderRepository {
         // Fallback: actualiza estado si la API no responde
         await _supabase.from('orders').update({
           'status': 'return_requested',
-          'return_reason': effectiveReason,
         }).eq('id', orderId);
         return true;
-      }
-    }
-
-    // Persistir return_reason directamente en Supabase.
-    // El backend de FashionStore actualiza status pero NO guarda el motivo,
-    // así que lo escribimos aquí para que el admin lo vea.
-    if (success) {
-      try {
-        await _supabase.from('orders').update({
-          'return_reason': effectiveReason,
-        }).eq('id', orderId);
-      } catch (e) {
-        // No bloquear si falla la escritura del motivo;
-        // el status ya fue actualizado por el backend.
-        debugPrint('No se pudo guardar return_reason: $e');
       }
     }
 

@@ -210,12 +210,25 @@ class OrderItemModel with _$OrderItemModel {
     String? color,
     required double priceAtPurchase,
     DateTime? createdAt,
+    @Default(0) int alreadyReturned,
   }) = _OrderItemModel;
 
   const OrderItemModel._();
 
   /// Factory con manejo de snake_case desde Supabase
-  factory OrderItemModel.fromJson(Map<String, dynamic> json) => OrderItemModel(
+  factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    // Sumar quantity_returned de order_item_returns embebidos (si existen)
+    int alreadyReturned = 0;
+    final returns = json['returns'] ?? json['order_item_returns'];
+    if (returns is List) {
+      for (final r in returns) {
+        if (r is Map) {
+          alreadyReturned += ((r['quantity_returned'] as num?)?.toInt() ?? 0);
+        }
+      }
+    }
+
+    return OrderItemModel(
         id: json['id']?.toString() ?? '',
         orderId: json['order_id']?.toString() ?? '',
         productId: json['product_id'] as String,
@@ -229,10 +242,18 @@ class OrderItemModel with _$OrderItemModel {
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)
             : null,
+        alreadyReturned: alreadyReturned,
       );
+  }
 
   /// Subtotal del item
   double get subtotal => priceAtPurchase * quantity;
+
+  /// Cantidad disponible para devolver (descontando ya devueltas)
+  int get returnableQuantity => quantity - alreadyReturned;
+
+  /// ¿Ya se devolvieron todas las unidades?
+  bool get fullyReturned => alreadyReturned >= quantity;
 
   /// Precio formateado
   String get formattedPrice => '€${priceAtPurchase.toStringAsFixed(2)}';

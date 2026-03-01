@@ -5,6 +5,7 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../../config/router/app_router.dart';
 import '../../../../config/theme/app_colors.dart';
+import '../../../../shared/services/supabase_service.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/product_providers.dart';
 import '../providers/filter_providers.dart';
@@ -243,6 +244,22 @@ class _ProductListPageState extends ConsumerState<ProductListPage> {
                           product: product,
                           isFavorite: isFav,
                           onFavorite: () {
+                            if (!SupabaseService.isAuthenticated) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Inicia sesión para añadir favoritos'),
+                                  backgroundColor: AppColors.dark500,
+                                  behavior: SnackBarBehavior.floating,
+                                  action: SnackBarAction(
+                                    label: 'Iniciar sesión',
+                                    textColor: AppColors.neonCyan,
+                                    onPressed: () => context.push(AppRoutes.login),
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
                             ref.read(favoriteIdsProvider.notifier).toggle(product.id);
                           },
                         );

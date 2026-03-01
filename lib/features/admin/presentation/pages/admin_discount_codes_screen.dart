@@ -295,13 +295,16 @@ class _AdminDiscountCodesScreenState extends ConsumerState<AdminDiscountCodesScr
       ),
       title: Row(
         children: [
-          Text(
-            code['code'] ?? '',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
+          Flexible(
+            child: Text(
+              code['code'] ?? '',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),
@@ -320,8 +323,8 @@ class _AdminDiscountCodesScreenState extends ConsumerState<AdminDiscountCodesScr
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          if (!isActive || isExpired)
+          if (!isActive || isExpired) ...[
+            const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
@@ -337,6 +340,7 @@ class _AdminDiscountCodesScreenState extends ConsumerState<AdminDiscountCodesScr
                 ),
               ),
             ),
+          ],
         ],
       ),
       subtitle: Padding(

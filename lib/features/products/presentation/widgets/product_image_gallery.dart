@@ -103,7 +103,7 @@ class _ProductImageGalleryState extends State<ProductImageGallery> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                gradient: AppColors.accentGradient,
+                color: AppColors.neonFuchsia,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(

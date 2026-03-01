@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../config/router/app_router.dart';
 import '../../../../config/theme/app_colors.dart';
 import '../../../../shared/services/fashion_store_api_service.dart';
+import '../../../../shared/services/supabase_service.dart';
 import '../../data/models/product_model.dart';
 import '../../../cart/presentation/providers/cart_providers.dart';
 import '../../../favorites/presentation/providers/favorites_providers.dart';
@@ -115,7 +117,27 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   void _toggleFavorite() {
     HapticFeedback.lightImpact();
+    if (!SupabaseService.isAuthenticated) {
+      _showLoginRequired();
+      return;
+    }
     ref.read(favoriteIdsProvider.notifier).toggle(widget.product.id);
+  }
+
+  void _showLoginRequired() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Inicia sesión para añadir favoritos'),
+        backgroundColor: AppColors.dark500,
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Iniciar sesión',
+          textColor: AppColors.neonCyan,
+          onPressed: () => context.push(AppRoutes.login),
+        ),
+      ),
+    );
   }
 
   @override
@@ -580,15 +602,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         // Precio actual
-        ShaderMask(
-          shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-          child: Text(
-            '€${product.price.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-            ),
+        Text(
+          '€${product.price.toStringAsFixed(2)}',
+          style: const TextStyle(
+            color: AppColors.neonCyan,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
           ),
         ),
         

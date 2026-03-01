@@ -99,6 +99,8 @@ final adminDashboardStatsProvider =
 
     if (response != null) {
       final data = response as Map<String, dynamic>;
+      final topName = data['topProductName'];
+      final topQty = data['topProductQty'] ?? 0;
       return {
         'totalProducts': data['totalProducts'] ?? 0,
         'totalCustomers': data['totalCustomers'] ?? 0,
@@ -106,8 +108,11 @@ final adminDashboardStatsProvider =
         'monthlySales': (data['monthlySales'] as num?)?.toDouble() ?? 0.0,
         'lowStockProducts': data['lowStockCount'] ?? 0,
         'offerProducts': data['offerProducts'] ?? 0,
-        'topProductName': data['topProductName'],
-        'topProductQty': data['topProductQty'] ?? 0,
+        'topProductName': topName,
+        'topProductQty': topQty,
+        'topProduct': (topName != null && topName != 'Sin ventas')
+            ? {'name': topName, 'quantity': topQty}
+            : null,
       };
     }
 
@@ -120,6 +125,7 @@ final adminDashboardStatsProvider =
       'offerProducts': 0,
       'topProductName': null,
       'topProductQty': 0,
+      'topProduct': null,
     };
   } catch (e) {
     print('Error fetching dashboard stats: $e');
@@ -314,20 +320,85 @@ final adminProductVariantsProvider =
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Provider configurable para ventas de los últimos N días
+/// Usa admin_get_orders RPC para bypassear RLS (la query directa falla
+/// porque el admin no tiene sesión Supabase Auth, solo sesión custom)
 final adminSalesProvider =
     FutureProvider.family<List<Map<String, dynamic>>, int>((ref, days) async {
   final supabase = Supabase.instance.client;
+  final admin = ref.read(adminSessionProvider);
 
   final now = DateTime.now();
   final startDate = now.subtract(Duration(days: days));
 
-  final response = await supabase
-      .from('orders')
-      .select('created_at, total_price, status')
-      .gte('created_at', startDate.toIso8601String())
-      .inFilter('status', ['paid', 'shipped', 'delivered', 'completed']);
+  List<Map<String, dynamic>> orders = [];
 
-  final orders = List<Map<String, dynamic>>.from(response);
+  // Intentar obtener pedidos vía RPC (bypassea RLS)
+  if (admin != null) {
+    try {
+      // Intentar RPC dedicado para ventas (más eficiente)
+      final response = await supabase.rpc(
+        'admin_get_sales_data',
+        params: {
+          'p_admin_email': admin.email,
+          'p_days': days,
+        },
+      );
+
+      if (response != null) {
+        // El RPC dedicado devuelve datos ya agregados por día
+        return List<Map<String, dynamic>>.from(response as List);
+      }
+    } catch (_) {
+      // RPC dedicado no disponible, usar admin_get_orders como fallback
+    }
+
+    try {
+      final response = await supabase.rpc(
+        'admin_get_orders',
+        params: {
+          'p_admin_email': admin.email,
+          'p_status': null,
+        },
+      );
+
+      if (response != null) {
+        orders = List<Map<String, dynamic>>.from(response as List);
+      }
+    } catch (e) {
+      print('Error fetching orders for sales via RPC: $e');
+    }
+  }
+
+  // Fallback: query directa (puede fallar por RLS)
+  if (orders.isEmpty) {
+    try {
+      final response = await supabase
+          .from('orders')
+          .select('created_at, total_price, status')
+          .gte('created_at', startDate.toIso8601String())
+          .inFilter('status', ['paid', 'shipped', 'delivered', 'partial_return']);
+      orders = List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Direct orders query failed (RLS): $e');
+    }
+  }
+
+  // Filtrar por status válidos y rango de fecha
+  final validStatuses = {'paid', 'shipped', 'delivered', 'partial_return'};
+  final filteredOrders = orders.where((o) {
+    final status = o['status'] as String?;
+    if (status == null || !validStatuses.contains(status)) return false;
+
+    final createdAtStr = o['created_at'] as String?;
+    if (createdAtStr == null) return false;
+
+    try {
+      final createdAt = DateTime.parse(createdAtStr);
+      return createdAt.isAfter(startDate);
+    } catch (_) {
+      return false;
+    }
+  }).toList();
 
   // Agrupar por día
   final Map<String, double> dailySales = {};
@@ -342,7 +413,7 @@ final adminSalesProvider =
   }
 
   // Sumar ventas y pedidos por día
-  for (final order in orders) {
+  for (final order in filteredOrders) {
     final createdAt = DateTime.parse(order['created_at'] as String);
     final dateKey = '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
     final total = (order['total_price'] as num?)?.toDouble() ?? 0;

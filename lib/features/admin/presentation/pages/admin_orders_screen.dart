@@ -1007,7 +1007,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           // Calcular total de reembolso
           double refundTotal = 0;
           for (final entry in returnQuantities.entries) {
-            final item = items.firstWhere((i) => i['id'] == entry.key);
+            final item = items.firstWhere((i) => i['id'].toString() == entry.key);
             refundTotal += (item['price_at_purchase'] as num).toDouble() * entry.value;
           }
 
@@ -1865,8 +1865,8 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
 
               const SizedBox(height: 24),
 
-              // === Sección de Envío (oculta si está cancelado) ===
-              if (status != 'cancelled') ...[
+              // === Sección de Envío (oculta si está cancelado/devuelto) ===
+              if (!const {'cancelled', 'returned'}.contains(status)) ...[
                 _buildShippingSection(status, hasTracking),
                 const SizedBox(height: 24),
               ],
@@ -2037,15 +2037,23 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
     // Estados destructivos que requieren confirmación inmediata (generan reembolsos)
     const destructiveStatuses = {'cancelled', 'returned'};
 
-    // ── Pedido cancelado: solo lectura ──
-    if (currentStatus == 'cancelled') {
+    // ── Pedidos finalizados: solo lectura (cancelado, devuelto, devolución parcial) ──
+    const _finalStatuses = {'cancelled', 'returned'};
+    if (_finalStatuses.contains(currentStatus)) {
+      final statusInfo = widget.getStatusInfo(currentStatus);
+      final statusColor = statusInfo['color'] as Color;
+      final statusLabel = statusInfo['label'] as String;
+      final statusIcon = statusInfo['icon'] as IconData;
       final cancellationReason = widget.order['cancellation_reason'] as String?;
+      final returnReason = widget.order['return_reason'] as String?;
+      final reason = currentStatus == 'cancelled' ? cancellationReason : returnReason;
+      final reasonTitle = currentStatus == 'cancelled' ? 'Motivo de la cancelación:' : 'Motivo de la devolución:';
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: const Color(0xFF0D0D14),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
+          border: Border.all(color: statusColor.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2056,24 +2064,24 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
+                color: statusColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.25)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.cancel, color: Colors.red, size: 18),
-                      SizedBox(width: 8),
+                      Icon(statusIcon, color: statusColor, size: 18),
+                      const SizedBox(width: 8),
                       Text(
-                        'Pedido cancelado',
-                        style: TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.w600),
+                        statusLabel,
+                        style: TextStyle(color: statusColor, fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
-                  if (cancellationReason != null && cancellationReason.isNotEmpty) ...[
+                  if (reason != null && reason.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
@@ -2086,20 +2094,22 @@ class _OrderDetailSheetState extends State<_OrderDetailSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Motivo de la cancelacion:', style: TextStyle(color: Colors.amber[300], fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(reasonTitle, style: TextStyle(color: Colors.amber[300], fontSize: 12, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 6),
                           Text(
-                            cancellationReason,
+                            reason,
                             style: const TextStyle(color: Colors.white70, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
                   ],
-                  if (cancellationReason == null || cancellationReason.isEmpty) ...[
+                  if (reason == null || reason.isEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'No se proporcionó motivo de cancelación.',
+                      currentStatus == 'cancelled'
+                          ? 'No se proporcionó motivo de cancelación.'
+                          : 'No se proporcionó motivo de devolución.',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12, fontStyle: FontStyle.italic),
                     ),
                   ],

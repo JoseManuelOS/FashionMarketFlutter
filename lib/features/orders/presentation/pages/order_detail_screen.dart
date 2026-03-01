@@ -709,12 +709,23 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   void _showReturnDialog(OrderModel order) {
     final reasonCtrl = TextEditingController();
+    // Filtrar items que aún tienen unidades por devolver
+    final returnableItems = order.items.where((it) => !it.fullyReturned).toList();
+    if (returnableItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Todos los artículos ya han sido devueltos'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     // Estado de seleccion de items: {itemId: {selected, qty}}
     final selectedItems = <String, bool>{};
     final selectedQty = <String, int>{};
-    for (final item in order.items) {
+    for (final item in returnableItems) {
       selectedItems[item.id] = true;
-      selectedQty[item.id] = item.quantity;
+      selectedQty[item.id] = item.returnableQuantity;
     }
 
     showDialog(
@@ -739,9 +750,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     // ── Lista de items con checkbox ──
-                    ...order.items.map((item) {
+                    ...returnableItems.map((item) {
                       final isSelected = selectedItems[item.id] ?? false;
-                      final qty = selectedQty[item.id] ?? item.quantity;
+                      final qty = selectedQty[item.id] ?? item.returnableQuantity;
+                      final maxQty = item.returnableQuantity;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(10),
@@ -820,8 +832,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                 ],
                               ),
                             ),
-                            // Selector de cantidad (solo si qty > 1)
-                            if (item.quantity > 1 && isSelected) ...[
+                            // Selector de cantidad (solo si maxQty > 1)
+                            if (maxQty > 1 && isSelected) ...[
                               const SizedBox(width: 6),
                               Container(
                                 decoration: BoxDecoration(
@@ -852,7 +864,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     ),
                                     _qtyButton(
                                       icon: Icons.add,
-                                      onTap: qty < item.quantity
+                                      onTap: qty < maxQty
                                           ? () => setDialogState(() =>
                                               selectedQty[item.id] = qty + 1)
                                           : null,
@@ -860,10 +872,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                   ],
                                 ),
                               ),
-                            ] else if (item.quantity > 1 && !isSelected) ...[
+                            ] else if (maxQty > 1 && !isSelected) ...[
                               const SizedBox(width: 6),
                               Text(
-                                'x${item.quantity}',
+                                'x$maxQty',
                                 style: const TextStyle(
                                   color: AppColors.textSubtle,
                                   fontSize: 12,
@@ -912,12 +924,12 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     ? () {
                         Navigator.pop(ctx);
                         // Construir razon con items seleccionados
-                        final itemsText = order.items
+                        final itemsText = returnableItems
                             .where((it) => selectedItems[it.id] == true)
                             .map((it) {
-                          final q = selectedQty[it.id] ?? it.quantity;
-                          final qText = it.quantity > 1
-                              ? ' ($q de ${it.quantity} uds)'
+                          final q = selectedQty[it.id] ?? it.returnableQuantity;
+                          final qText = it.returnableQuantity > 1
+                              ? ' ($q de ${it.returnableQuantity} uds)'
                               : '';
                           return '- ${it.productName} (Talla ${it.size})$qText';
                         }).join('\n');

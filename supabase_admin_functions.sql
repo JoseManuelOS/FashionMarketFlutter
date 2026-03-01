@@ -465,7 +465,7 @@ GRANT EXECUTE ON FUNCTION admin_get_sales_by_period(TEXT, INT) TO anon, authenti
 -- =============================================
 -- admin_update_order_status
 -- Actualiza el estado de un pedido
--- NOTA: p_order_id es INTEGER como texto (ej: '123')
+-- NOTA: orders.id es UUID en la BD real de Supabase
 -- =============================================
 DROP FUNCTION IF EXISTS admin_update_order_status(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION admin_update_order_status(
@@ -482,7 +482,7 @@ SET search_path = public
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  v_order_id INTEGER;
+  v_order_id UUID;
   v_order_exists BOOLEAN;
 BEGIN
   -- Verificar que es un admin valido
@@ -494,8 +494,8 @@ BEGIN
     RAISE EXCEPTION 'Usuario admin no valido';
   END IF;
 
-  -- Convertir order_id a INTEGER
-  v_order_id := p_order_id::INTEGER;
+  -- Convertir order_id a UUID
+  v_order_id := p_order_id::UUID;
 
   -- Verificar que el pedido existe
   SELECT EXISTS(SELECT 1 FROM orders WHERE id = v_order_id) INTO v_order_exists;
@@ -864,8 +864,19 @@ CREATE TABLE IF NOT EXISTS order_item_returns (
 CREATE INDEX IF NOT EXISTS idx_order_item_returns_order ON order_item_returns(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_item_returns_item ON order_item_returns(order_item_id);
 
--- RLS deshabilitado (acceso vía SECURITY DEFINER RPCs)
+-- RLS: admin vía SECURITY DEFINER RPCs, clientes pueden leer sus propias devoluciones
 ALTER TABLE order_item_returns ENABLE ROW LEVEL SECURITY;
+
+-- Política para que los clientes vean las devoluciones de sus propios pedidos
+DROP POLICY IF EXISTS "customers_read_own_returns" ON order_item_returns;
+CREATE POLICY "customers_read_own_returns" ON order_item_returns
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM orders
+    WHERE orders.id = order_item_returns.order_id
+    AND orders.customer_id::text = auth.uid()::text
+  )
+);
 
 
 -- =============================================
@@ -1076,6 +1087,64 @@ GRANT EXECUTE ON FUNCTION admin_process_partial_return(TEXT, JSONB) TO anon, aut
 
 
 -- =============================================
+-- admin_get_sales_data
+-- Obtiene ventas diarias agregadas para el gráfico de ventas
+-- Parámetros: email admin + número de días
+-- Devuelve: array de {date, total, orders} por día
+-- =============================================
+DROP FUNCTION IF EXISTS admin_get_sales_data(TEXT, INT);
+CREATE OR REPLACE FUNCTION admin_get_sales_data(
+  p_admin_email TEXT,
+  p_days INT DEFAULT 7
+)
+RETURNS JSON
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_result JSON;
+  v_start_date DATE;
+BEGIN
+  -- Verificar que es un admin valido
+  IF NOT EXISTS (
+    SELECT 1 FROM admins 
+    WHERE email = p_admin_email 
+    AND is_active = true
+  ) THEN
+    RAISE EXCEPTION 'Usuario admin no valido';
+  END IF;
+
+  v_start_date := CURRENT_DATE - p_days;
+
+  -- Generar serie de días y agregar ventas
+  SELECT json_agg(
+    json_build_object(
+      'date', to_char(d.day, 'YYYY-MM-DD'),
+      'total', COALESCE(daily.total_sales, 0),
+      'orders', COALESCE(daily.order_count, 0)
+    )
+    ORDER BY d.day
+  ) INTO v_result
+  FROM generate_series(v_start_date, CURRENT_DATE, '1 day'::interval) AS d(day)
+  LEFT JOIN (
+    SELECT 
+      o.created_at::date AS order_date,
+      SUM(o.total_price)::NUMERIC AS total_sales,
+      COUNT(o.id)::INT AS order_count
+    FROM orders o
+    WHERE o.status IN ('paid', 'shipped', 'delivered', 'partial_return')
+    AND o.created_at::date >= v_start_date
+    GROUP BY o.created_at::date
+  ) daily ON daily.order_date = d.day::date;
+
+  RETURN COALESCE(v_result, '[]'::json);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION admin_get_sales_data(TEXT, INT) TO anon, authenticated;
+
+-- =============================================
 -- VERIFICACION
 -- =============================================
 -- Para probar, ejecuta (reemplaza con tu email de admin):
@@ -1083,6 +1152,7 @@ GRANT EXECUTE ON FUNCTION admin_process_partial_return(TEXT, JSONB) TO anon, aut
 -- SELECT admin_get_dashboard_stats('tu_email@admin.com');
 -- SELECT admin_get_customers('tu_email@admin.com');
 -- SELECT admin_get_orders('tu_email@admin.com', NULL);
+-- SELECT admin_get_sales_data('tu_email@admin.com', 7);
 -- SELECT admin_get_sales_last_7_days('tu_email@admin.com');
 -- SELECT admin_create_product('tu_email@admin.com', '{"name":"Test","price":29.99,"category_id":"...","variants":[{"size":"M","stock":10}],"images":[{"image_url":"https://...","order":0}]}'::jsonb);
 -- SELECT admin_update_product('tu_email@admin.com', 'product-uuid-here'::uuid, '{"name":"Updated","price":39.99,"variants":[{"size":"M","stock":5}]}'::jsonb);
