@@ -46,10 +46,11 @@ const ENDPOINT_MAP: Record<string, string> = {
   stock: '/api/products/stock',
   'send-shipping-update': '/api/email/send-shipping-update',
   'send-order-delivered': '/api/email/send-order-delivered',
+  'send-newsletter': '/api/email/send-newsletter',
 };
 
 // Acciones que requieren cookie de admin en vez de Authorization header
-const ADMIN_ACTIONS = new Set(['accept-return', 'admin-cancel', 'send-shipping-update', 'send-order-delivered']);
+const ADMIN_ACTIONS = new Set(['accept-return', 'admin-cancel', 'send-shipping-update', 'send-order-delivered', 'send-newsletter']);
 
 // Acciones públicas que no requieren Authorization
 const PUBLIC_ACTIONS = new Set(['stock']);
@@ -59,6 +60,57 @@ const GET_ACTIONS = new Set(['stock']);
 
 // Acciones gestionadas directamente en la Edge Function (no se reenvían a FashionStore)
 const DIRECT_ACTIONS = new Set(['reject-return', 'accept-partial-return']);
+
+function normalizeHttpUrl(raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string') return fallback;
+
+  const trimmed = raw.trim();
+  if (!trimmed) return fallback;
+
+  const normalized = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+
+  try {
+    const parsed = new URL(normalized, FASHION_STORE_URL);
+    const protocol = parsed.protocol.toLowerCase();
+    if ((protocol === 'http:' || protocol === 'https:') && parsed.hostname) {
+      return parsed.toString();
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function sanitizeCheckoutPayload(payload: Record<string, unknown>): Record<string, unknown> {
+  const safePayload: Record<string, unknown> = { ...payload };
+
+  safePayload.successUrl = normalizeHttpUrl(
+    payload.successUrl,
+    `${FASHION_STORE_URL}/checkout/success`,
+  );
+  safePayload.cancelUrl = normalizeHttpUrl(
+    payload.cancelUrl,
+    `${FASHION_STORE_URL}/checkout`,
+  );
+
+  const rawItems = Array.isArray(payload.items) ? payload.items : [];
+  safePayload.items = rawItems.map((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+
+    const itemRecord = { ...(item as Record<string, unknown>) };
+    if (typeof itemRecord.image === 'string') {
+      const normalizedImage = normalizeHttpUrl(itemRecord.image, '');
+      if (normalizedImage) {
+        itemRecord.image = normalizedImage;
+      } else {
+        delete itemRecord.image;
+      }
+    }
+    return itemRecord;
+  });
+
+  return safePayload;
+}
 
 // ─── Helpers para acciones directas ─────────────────────────────────
 
@@ -675,12 +727,16 @@ Deno.serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/json' },
       });
     } else {
+      const bodyToForward = action === 'checkout'
+        ? sanitizeCheckoutPayload(forwardBody)
+        : forwardBody;
+
       fashionStoreResponse = await fetch(
         `${FASHION_STORE_URL}${endpoint}`,
         {
           method: 'POST',
           headers,
-          body: JSON.stringify(forwardBody),
+          body: JSON.stringify(bodyToForward),
         }
       );
     }

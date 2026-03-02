@@ -14,6 +14,32 @@ class StripeService {
   static const String publishableKey =
       'pk_test_51SLMKqPdrdVG7wyai3GefN69zdF4z70PatD0TL0BnOzBhdf3GqGQFkI3lg8ArG3hIn1urgvySQPtERzKXSYBIP7W00aJ234hMU';
 
+  static String? _normalizeImageForStripe(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return null;
+
+    final protocolRelative = trimmed.startsWith('//')
+        ? 'https:$trimmed'
+        : trimmed;
+
+    final parsed = Uri.tryParse(protocolRelative);
+    if (parsed == null) return null;
+
+    if (parsed.hasScheme) {
+      final scheme = parsed.scheme.toLowerCase();
+      return (scheme == 'http' || scheme == 'https')
+          ? parsed.toString()
+          : null;
+    }
+
+    if (protocolRelative.startsWith('/')) {
+      final base = Uri.parse(FashionStoreApiService.baseUrl);
+      return base.resolve(protocolRelative).toString();
+    }
+
+    return null;
+  }
+
   /// Resuelve el color real de la variante en product_variants para un item del carrito.
   /// 
   /// El carrito almacena colores de product_images (ej. "brown", "Rojo"),
@@ -112,14 +138,17 @@ class StripeService {
       final variantColors = await _resolveVariantColors(items);
 
       // Convertir CartItemModel a formato que espera el API
-      final apiItems = items.map((item) => {
-        'id': item.productId,
-        'name': item.name,
-        'price': item.price,
-        'quantity': item.quantity,
-        'size': item.size,
-        'color': variantColors[item.uniqueId] ?? item.color ?? '',
-        'image': item.imageUrl,
+      final apiItems = items.map((item) {
+        final normalizedImage = _normalizeImageForStripe(item.imageUrl);
+        return {
+          'id': item.productId,
+          'name': item.name,
+          'price': item.price,
+          'quantity': item.quantity,
+          'size': item.size,
+          'color': variantColors[item.uniqueId] ?? item.color ?? '',
+          if (normalizedImage != null) 'image': normalizedImage,
+        };
       }).toList();
 
       // Preparar descuento si existe

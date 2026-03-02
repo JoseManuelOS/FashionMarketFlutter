@@ -294,14 +294,18 @@ class _AdminCategoriesScreenState
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _buildMetaItem(
-                          Icons.link,
-                          '/$slug',
+                        Expanded(
+                          child: _buildMetaItem(
+                            Icons.link,
+                            '/$slug',
+                          ),
                         ),
-                        const SizedBox(width: 16),
-                        _buildMetaItem(
-                          Icons.inventory_2_outlined,
-                          '$productsCount productos',
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildMetaItem(
+                            Icons.inventory_2_outlined,
+                            '$productsCount productos',
+                          ),
                         ),
                       ],
                     ),
@@ -382,13 +386,16 @@ class _AdminCategoriesScreenState
 
   Widget _buildMetaItem(IconData icon, String text) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: Colors.grey[600], size: 14),
         const SizedBox(width: 4),
-        Text(
-          text,
-          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

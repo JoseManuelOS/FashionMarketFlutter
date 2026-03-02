@@ -226,6 +226,19 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
 
     if (confirmed != true) return;
 
+    final admin = ref.read(adminSessionProvider);
+    if (admin == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sesión de admin no disponible'),
+            backgroundColor: Colors.red[700],
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isSending = true);
 
     try {
@@ -252,7 +265,7 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
             : (_buttonUrlCtrl.text.trim().isNotEmpty
                 ? _buttonUrlCtrl.text.trim()
                 : null),
-        adminEmail: ref.read(adminSessionProvider)?.email,
+        adminEmail: admin.email,
       );
 
       if (!mounted) return;

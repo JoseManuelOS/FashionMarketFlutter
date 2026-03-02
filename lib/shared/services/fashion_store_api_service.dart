@@ -12,6 +12,30 @@ class FashionStoreApiService {
   FashionStoreApiService._();
 
   static const String _baseUrl = AppConstants.fashionStoreBaseUrl;
+  static String get baseUrl => _baseUrl;
+
+  static String _ensureHttpUrl(String value) {
+    final candidate = value.trim();
+    if (candidate.isEmpty) return _baseUrl;
+
+    final normalized = candidate.startsWith('//') ? 'https:$candidate' : candidate;
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return _baseUrl;
+
+    if (uri.hasScheme) {
+      final scheme = uri.scheme.toLowerCase();
+      if (scheme == 'http' || scheme == 'https') {
+        return uri.toString();
+      }
+      return _baseUrl;
+    }
+
+    if (normalized.startsWith('/')) {
+      return Uri.parse(_baseUrl).resolve(normalized).toString();
+    }
+
+    return _baseUrl;
+  }
 
   /// Headers base para las peticiones
   static Map<String, String> get _headers => {
@@ -85,11 +109,14 @@ class FashionStoreApiService {
     final String cancelUrl;
     if (kIsWeb) {
       final origin = Uri.base.origin;
-      successUrl = '$origin/checkout/success';
-      cancelUrl = '$origin/checkout';
+      successUrl = _ensureHttpUrl('$origin/checkout/success');
+      cancelUrl = _ensureHttpUrl('$origin/checkout');
     } else {
-      successUrl = 'io.supabase.fashionmarket://checkout/success';
-      cancelUrl = 'io.supabase.fashionmarket://checkout';
+      // Stripe requires https:// URLs — custom URI schemes are rejected.
+      // We use the web domain for redirects; the app's payment dialog
+      // handles verification manually when the user returns from the browser.
+      successUrl = _ensureHttpUrl('$_baseUrl/checkout/success');
+      cancelUrl = _ensureHttpUrl('$_baseUrl/checkout');
     }
 
     final body = {
@@ -605,7 +632,7 @@ class FashionStoreApiService {
     String? promoDiscount,
     String? buttonText,
     String? buttonUrl,
-    String? adminEmail,
+    required String adminEmail,
   }) async {
     final body = <String, dynamic>{
       'subject': subject,
@@ -618,7 +645,7 @@ class FashionStoreApiService {
     if (buttonText != null) body['buttonText'] = buttonText;
     if (buttonUrl != null) body['buttonUrl'] = buttonUrl;
 
-    if (kIsWeb && adminEmail != null) {
+    if (kIsWeb) {
       return _callAdminRelay(
         action: 'send-newsletter',
         body: {'adminEmail': adminEmail, ...body},
@@ -627,7 +654,7 @@ class FashionStoreApiService {
 
     final response = await http.post(
       Uri.parse('$_baseUrl/api/email/send-newsletter'),
-      headers: _headers,
+      headers: _adminHeaders(adminEmail),
       body: jsonEncode(body),
     );
 

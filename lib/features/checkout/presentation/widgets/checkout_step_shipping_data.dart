@@ -32,6 +32,7 @@ class _CheckoutStepShippingDataState
   late TextEditingController _provinceController;
   String _selectedCountry = 'ES';
   String? _selectedAddressId;
+  bool _hasAutoFilledSavedAddress = false;
 
   @override
   void initState() {
@@ -77,6 +78,16 @@ class _CheckoutStepShippingDataState
     });
   }
 
+  bool _shouldAutoFillAddress() {
+    return _selectedAddressId == null &&
+        _nameController.text.trim().isEmpty &&
+        _phoneController.text.trim().isEmpty &&
+        _streetController.text.trim().isEmpty &&
+        _postalCodeController.text.trim().isEmpty &&
+        _cityController.text.trim().isEmpty &&
+        _provinceController.text.trim().isEmpty;
+  }
+
   void _saveAndContinue() {
     if (_formKey.currentState!.validate()) {
       ref.read(checkoutDataProvider.notifier).setShippingData(
@@ -108,6 +119,19 @@ class _CheckoutStepShippingDataState
             savedAddresses.when(
               data: (addresses) {
                 if (addresses.isEmpty) return const SizedBox.shrink();
+
+                if (!_hasAutoFilledSavedAddress && _shouldAutoFillAddress()) {
+                  _hasAutoFilledSavedAddress = true;
+                  final defaultAddress = addresses.firstWhere(
+                    (addr) => addr.isDefault,
+                    orElse: () => addresses.first,
+                  );
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted) return;
+                    _fillFromSavedAddress(defaultAddress);
+                  });
+                }
+
                 return _buildSavedAddressesSection(addresses);
               },
               loading: () => const Padding(

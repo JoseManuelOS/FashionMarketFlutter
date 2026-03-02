@@ -135,7 +135,7 @@ class AdminKpisScreen extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.3,
+      childAspectRatio: 1.1,
       children: List.generate(
         4,
         (_) => Container(
@@ -188,7 +188,7 @@ class AdminKpisScreen extends ConsumerWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.1,
+      childAspectRatio: 0.95,
       children: [
         // Ventas del Mes - Cyan
         _buildKpiCard(
@@ -245,7 +245,7 @@ class AdminKpisScreen extends ConsumerWidget {
     bool isSmallValue = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -275,13 +275,13 @@ class AdminKpisScreen extends ConsumerWidget {
           
           // Icon
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 20),
+            child: Icon(icon, color: color, size: 18),
           ),
           
           const Spacer(),
