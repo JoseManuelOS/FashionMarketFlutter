@@ -18,7 +18,9 @@ class FashionStoreApiService {
     final candidate = value.trim();
     if (candidate.isEmpty) return _baseUrl;
 
-    final normalized = candidate.startsWith('//') ? 'https:$candidate' : candidate;
+    final normalized = candidate.startsWith('//')
+        ? 'https:$candidate'
+        : candidate;
     final uri = Uri.tryParse(normalized);
     if (uri == null) return _baseUrl;
 
@@ -39,9 +41,9 @@ class FashionStoreApiService {
 
   /// Headers base para las peticiones
   static Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Origin': _baseUrl,
-      };
+    'Content-Type': 'application/json',
+    'Origin': _baseUrl,
+  };
 
   /// Headers con autenticación del usuario actual de Supabase
   static Map<String, String> get _authHeaders {
@@ -74,8 +76,9 @@ class FashionStoreApiService {
     }
     final params = <String, String>{'productId': productId};
     if (color != null && color.isNotEmpty) params['color'] = color;
-    final uri = Uri.parse('$_baseUrl/api/products/stock')
-        .replace(queryParameters: params);
+    final uri = Uri.parse(
+      '$_baseUrl/api/products/stock',
+    ).replace(queryParameters: params);
 
     final response = await http.get(uri, headers: _headers);
 
@@ -137,7 +140,9 @@ class FashionStoreApiService {
     debugPrint('[Checkout] Respuesta del relay: $result');
 
     final url = result['url'] as String?;
-    if (result.containsKey('sessionId') && url != null && url.startsWith('http')) {
+    if (result.containsKey('sessionId') &&
+        url != null &&
+        url.startsWith('http')) {
       return result;
     }
 
@@ -184,10 +189,7 @@ class FashionStoreApiService {
     required String code,
     String? customerEmail,
   }) async {
-    final bodyData = {
-      'code': code,
-      'customerEmail': customerEmail,
-    };
+    final bodyData = {'code': code, 'customerEmail': customerEmail};
 
     if (kIsWeb) {
       return _callPublicRelay(action: 'validate-discount', body: bodyData);
@@ -229,10 +231,7 @@ class FashionStoreApiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/orders/cancel'),
       headers: _authHeaders,
-      body: jsonEncode({
-        'orderId': orderId,
-        'reason': reason,
-      }),
+      body: jsonEncode({'orderId': orderId, 'reason': reason}),
     );
 
     return jsonDecode(response.body);
@@ -246,10 +245,7 @@ class FashionStoreApiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/orders/request-return'),
       headers: _authHeaders,
-      body: jsonEncode({
-        'orderId': orderId,
-        'reason': reason,
-      }),
+      body: jsonEncode({'orderId': orderId, 'reason': reason}),
     );
 
     return jsonDecode(response.body);
@@ -287,11 +283,7 @@ class FashionStoreApiService {
     String? name,
     String source = 'flutter_app',
   }) async {
-    final bodyData = {
-      'email': email,
-      'name': name,
-      'source': source,
-    };
+    final bodyData = {'email': email, 'name': name, 'source': source};
 
     if (kIsWeb) {
       return _callPublicRelay(action: 'newsletter-subscribe', body: bodyData);
@@ -388,10 +380,7 @@ class FashionStoreApiService {
     final response = await http.post(
       Uri.parse('$_baseUrl/api/orders/request-invoice'),
       headers: _authHeaders,
-      body: jsonEncode({
-        'orderId': orderId,
-        if (type != null) 'type': type,
-      }),
+      body: jsonEncode({'orderId': orderId, if (type != null) 'type': type}),
     );
 
     return jsonDecode(response.body);
@@ -609,7 +598,10 @@ class FashionStoreApiService {
     };
 
     if (kIsWeb) {
-      return _callPublicRelay(action: 'send-order-confirmation', body: bodyData);
+      return _callPublicRelay(
+        action: 'send-order-confirmation',
+        body: bodyData,
+      );
     }
 
     final response = await http.post(
@@ -634,10 +626,7 @@ class FashionStoreApiService {
     String? buttonUrl,
     required String adminEmail,
   }) async {
-    final body = <String, dynamic>{
-      'subject': subject,
-      'content': content,
-    };
+    final body = <String, dynamic>{'subject': subject, 'content': content};
     if (headerTitle != null) body['headerTitle'] = headerTitle;
     if (imageUrl != null) body['imageUrl'] = imageUrl;
     if (promoCode != null) body['promoCode'] = promoCode;

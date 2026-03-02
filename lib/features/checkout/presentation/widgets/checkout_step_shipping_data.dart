@@ -10,10 +10,7 @@ import '../providers/checkout_providers.dart';
 class CheckoutStepShippingData extends ConsumerStatefulWidget {
   final VoidCallback onContinue;
 
-  const CheckoutStepShippingData({
-    super.key,
-    required this.onContinue,
-  });
+  const CheckoutStepShippingData({super.key, required this.onContinue});
 
   @override
   ConsumerState<CheckoutStepShippingData> createState() =>
@@ -90,7 +87,9 @@ class _CheckoutStepShippingDataState
 
   void _saveAndContinue() {
     if (_formKey.currentState!.validate()) {
-      ref.read(checkoutDataProvider.notifier).setShippingData(
+      ref
+          .read(checkoutDataProvider.notifier)
+          .setShippingData(
             email: _emailController.text.trim(),
             phone: _phoneController.text.trim(),
             fullName: _nameController.text.trim(),
@@ -187,16 +186,14 @@ class _CheckoutStepShippingDataState
                   controller: _nameController,
                   label: 'Nombre Completo *',
                   hint: 'Juan Pérez',
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Requerido' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _streetController,
                   label: 'Dirección *',
                   hint: 'Calle Principal, 123',
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Requerido' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -235,9 +232,7 @@ class _CheckoutStepShippingDataState
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildDropdown(),
-                    ),
+                    Expanded(child: _buildDropdown()),
                   ],
                 ),
               ],
@@ -307,13 +302,7 @@ class _CheckoutStepShippingDataState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 13,
-          ),
-        ),
+        Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -357,10 +346,7 @@ class _CheckoutStepShippingDataState
       children: [
         Text(
           'País *',
-          style: TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
         ),
         const SizedBox(height: 6),
         Container(
@@ -457,10 +443,13 @@ class _CheckoutStepShippingDataState
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color:
-                                          AppColors.neonCyan.withValues(alpha: 0.2),
+                                      color: AppColors.neonCyan.withValues(
+                                        alpha: 0.2,
+                                      ),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: const Text(

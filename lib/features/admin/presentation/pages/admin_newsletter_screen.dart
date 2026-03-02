@@ -17,50 +17,50 @@ import '../widgets/admin_notification_button.dart';
 /// Lista de suscriptores al newsletter (combina tabla + clientes como FashionStore)
 final adminSubscribersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final supabase = Supabase.instance.client;
+      final supabase = Supabase.instance.client;
 
-  // 1. Subscribers from dedicated table
-  final tableResponse = await supabase
-      .from('newsletter_subscribers')
-      .select()
-      .order('subscribed_at', ascending: false);
-  final tableSubs = List<Map<String, dynamic>>.from(tableResponse);
+      // 1. Subscribers from dedicated table
+      final tableResponse = await supabase
+          .from('newsletter_subscribers')
+          .select()
+          .order('subscribed_at', ascending: false);
+      final tableSubs = List<Map<String, dynamic>>.from(tableResponse);
 
-  // 2. Customers with newsletter = true
-  final customerResponse = await supabase
-      .from('customers')
-      .select('id, email, full_name, newsletter, created_at')
-      .eq('newsletter', true);
-  final customerSubs = List<Map<String, dynamic>>.from(customerResponse);
+      // 2. Customers with newsletter = true
+      final customerResponse = await supabase
+          .from('customers')
+          .select('id, email, full_name, newsletter, created_at')
+          .eq('newsletter', true);
+      final customerSubs = List<Map<String, dynamic>>.from(customerResponse);
 
-  // Track emails to avoid duplicates
-  final seenEmails = <String>{};
-  final combined = <Map<String, dynamic>>[];
+      // Track emails to avoid duplicates
+      final seenEmails = <String>{};
+      final combined = <Map<String, dynamic>>[];
 
-  // Add table subscribers first
-  for (final sub in tableSubs) {
-    final email = (sub['email'] as String?)?.toLowerCase() ?? '';
-    if (email.isNotEmpty && seenEmails.add(email)) {
-      combined.add({...sub, '_source': 'popup'});
-    }
-  }
+      // Add table subscribers first
+      for (final sub in tableSubs) {
+        final email = (sub['email'] as String?)?.toLowerCase() ?? '';
+        if (email.isNotEmpty && seenEmails.add(email)) {
+          combined.add({...sub, '_source': 'popup'});
+        }
+      }
 
-  // Add customer subscribers
-  for (final cust in customerSubs) {
-    final email = (cust['email'] as String?)?.toLowerCase() ?? '';
-    if (email.isNotEmpty && seenEmails.add(email)) {
-      combined.add({
-        'email': cust['email'],
-        'name': cust['full_name'],
-        'is_active': true,
-        'subscribed_at': cust['created_at'],
-        '_source': 'cliente',
-      });
-    }
-  }
+      // Add customer subscribers
+      for (final cust in customerSubs) {
+        final email = (cust['email'] as String?)?.toLowerCase() ?? '';
+        if (email.isNotEmpty && seenEmails.add(email)) {
+          combined.add({
+            'email': cust['email'],
+            'name': cust['full_name'],
+            'is_active': true,
+            'subscribed_at': cust['created_at'],
+            '_source': 'cliente',
+          });
+        }
+      }
 
-  return combined;
-});
+      return combined;
+    });
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SCREEN
@@ -116,10 +116,7 @@ class _AdminNewsletterScreenState extends ConsumerState<AdminNewsletterScreen>
             onPressed: () => Scaffold.of(ctx).openDrawer(),
           ),
         ),
-        actions: const [
-          AdminNotificationButton(),
-          SizedBox(width: 8),
-        ],
+        actions: const [AdminNotificationButton(), SizedBox(width: 8)],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.neonCyan,
@@ -133,10 +130,7 @@ class _AdminNewsletterScreenState extends ConsumerState<AdminNewsletterScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _ComposeTab(),
-          _SubscribersTab(),
-        ],
+        children: const [_ComposeTab(), _SubscribersTab()],
       ),
     );
   }
@@ -157,8 +151,9 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
   final _formKey = GlobalKey<FormState>();
   final _subjectCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
-  final _headerTitleCtrl =
-      TextEditingController(text: 'Novedades de FashionMarket');
+  final _headerTitleCtrl = TextEditingController(
+    text: 'Novedades de FashionMarket',
+  );
   final _imageUrlCtrl = TextEditingController();
   final _promoCodeCtrl = TextEditingController();
   final _promoDiscountCtrl = TextEditingController();
@@ -202,8 +197,10 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A24),
-        title: const Text('Confirmar envío',
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Confirmar envío',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Text(
           '¿Estás seguro de enviar este newsletter a todos los suscriptores?',
           style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
@@ -215,10 +212,13 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppColors.neonCyan),
-            child: const Text('Enviar',
-                style: TextStyle(color: Color(0xFF0A0A0F))),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.neonCyan,
+            ),
+            child: const Text(
+              'Enviar',
+              style: TextStyle(color: Color(0xFF0A0A0F)),
+            ),
           ),
         ],
       ),
@@ -263,8 +263,8 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
         buttonUrl: _selectedUrlKey != null
             ? _selectedUrlKey!
             : (_buttonUrlCtrl.text.trim().isNotEmpty
-                ? _buttonUrlCtrl.text.trim()
-                : null),
+                  ? _buttonUrlCtrl.text.trim()
+                  : null),
         adminEmail: admin.email,
       );
 
@@ -333,7 +333,11 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                       color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.check_circle_outline, color: Colors.green[400], size: 20),
+                    child: Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green[400],
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -424,13 +428,13 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
 
               _buildLabel('URL de imagen'),
               const SizedBox(height: 8),
-              _buildField(
-                controller: _imageUrlCtrl,
-                hint: 'https://...',
-              ),
+              _buildField(controller: _imageUrlCtrl, hint: 'https://...'),
               Text(
                 'Imagen destacada que aparecera en el email',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 11),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  fontSize: 11,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -440,14 +444,20 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                 decoration: BoxDecoration(
                   color: Colors.amber.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.sell_outlined, size: 16, color: Colors.amber[400]),
+                        Icon(
+                          Icons.sell_outlined,
+                          size: 16,
+                          color: Colors.amber[400],
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Codigo Promocional (opcional)',
@@ -488,7 +498,9 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                 decoration: BoxDecoration(
                   color: AppColors.neonCyan.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: AppColors.neonCyan.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,25 +538,47 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.neonCyan.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: AppColors.neonCyan.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: DropdownButtonFormField<String?>(
                         value: _selectedUrlKey,
                         dropdownColor: const Color(0xFF1A1A24),
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                         decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           border: InputBorder.none,
                         ),
-                        icon: Icon(Icons.keyboard_arrow_down, color: Colors.white.withValues(alpha: 0.4)),
+                        icon: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.white.withValues(alpha: 0.4),
+                        ),
                         items: [
-                          ..._urlDestinations.entries.map((e) => DropdownMenuItem(
-                                value: e.key,
-                                child: Text(e.value, style: const TextStyle(fontSize: 14)),
-                              )),
+                          ..._urlDestinations.entries.map(
+                            (e) => DropdownMenuItem(
+                              value: e.key,
+                              child: Text(
+                                e.value,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
                           const DropdownMenuItem(
                             value: null,
-                            child: Text('URL personalizada', style: TextStyle(fontSize: 14, color: Colors.white54)),
+                            child: Text(
+                              'URL personalizada',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white54,
+                              ),
+                            ),
                           ),
                         ],
                         onChanged: (v) => setState(() => _selectedUrlKey = v),
@@ -584,8 +618,9 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.neonCyan,
                   foregroundColor: const Color(0xFF0A0A0F),
-                  disabledBackgroundColor:
-                      AppColors.neonCyan.withValues(alpha: 0.4),
+                  disabledBackgroundColor: AppColors.neonCyan.withValues(
+                    alpha: 0.4,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -629,8 +664,10 @@ class _ComposeTabState extends ConsumerState<_ComposeTab> {
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.05),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
@@ -675,8 +712,10 @@ class _SubscribersTab extends ConsumerWidget {
           children: [
             const SizedBox(height: 100),
             Center(
-              child: Text('Error: $e',
-                  style: TextStyle(color: Colors.red[300])),
+              child: Text(
+                'Error: $e',
+                style: TextStyle(color: Colors.red[300]),
+              ),
             ),
           ],
         ),
@@ -686,8 +725,11 @@ class _SubscribersTab extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline,
-                      size: 64, color: Colors.white.withValues(alpha: 0.2)),
+                  Icon(
+                    Icons.people_outline,
+                    size: 64,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Sin suscriptores',
@@ -708,23 +750,30 @@ class _SubscribersTab extends ConsumerWidget {
               // Stats bar
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 color: Colors.white.withValues(alpha: 0.03),
                 child: Row(
                   children: [
                     _StatChip(
-                        label: 'Total', value: '${subs.length}', color: Colors.white70),
+                      label: 'Total',
+                      value: '${subs.length}',
+                      color: Colors.white70,
+                    ),
                     const SizedBox(width: 16),
                     _StatChip(
-                        label: 'Activos',
-                        value: '$active',
-                        color: Colors.green[400]!),
+                      label: 'Activos',
+                      value: '$active',
+                      color: Colors.green[400]!,
+                    ),
                     const SizedBox(width: 16),
                     _StatChip(
-                        label: 'Inactivos',
-                        value: '${subs.length - active}',
-                        color: Colors.red[400]!),
+                      label: 'Inactivos',
+                      value: '${subs.length - active}',
+                      color: Colors.red[400]!,
+                    ),
                   ],
                 ),
               ),
@@ -738,7 +787,8 @@ class _SubscribersTab extends ConsumerWidget {
                     final sub = subs[i];
                     final isActive = sub['is_active'] == true;
                     final date = DateTime.tryParse(sub['subscribed_at'] ?? '');
-                    final source = sub['_source'] as String? ??
+                    final source =
+                        sub['_source'] as String? ??
                         (sub['source'] as String? ?? '');
                     final isPopup = source == 'popup' || source == 'subscriber';
                     final isCliente = source == 'cliente';
@@ -746,7 +796,9 @@ class _SubscribersTab extends ConsumerWidget {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF12121A),
                         borderRadius: BorderRadius.circular(12),
@@ -766,7 +818,9 @@ class _SubscribersTab extends ConsumerWidget {
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              (sub['name'] as String? ?? sub['email'] as String? ?? '?')
+                              (sub['name'] as String? ??
+                                      sub['email'] as String? ??
+                                      '?')
                                   .substring(0, 1)
                                   .toUpperCase(),
                               style: TextStyle(
@@ -787,7 +841,9 @@ class _SubscribersTab extends ConsumerWidget {
                                   children: [
                                     Flexible(
                                       child: Text(
-                                        sub['name'] as String? ?? sub['email'] ?? '',
+                                        sub['name'] as String? ??
+                                            sub['email'] ??
+                                            '',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
@@ -800,12 +856,19 @@ class _SubscribersTab extends ConsumerWidget {
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: isCliente
-                                              ? AppColors.neonCyan.withValues(alpha: 0.12)
-                                              : AppColors.neonFuchsia.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(6),
+                                              ? AppColors.neonCyan.withValues(
+                                                  alpha: 0.12,
+                                                )
+                                              : AppColors.neonFuchsia
+                                                    .withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Text(
                                           isCliente ? 'Cliente' : 'Popup',
@@ -855,10 +918,13 @@ class _SubscribersTab extends ConsumerWidget {
                             Container(
                               margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: AppColors.neonFuchsia
-                                    .withValues(alpha: 0.15),
+                                color: AppColors.neonFuchsia.withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text(

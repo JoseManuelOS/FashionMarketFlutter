@@ -27,9 +27,7 @@ class StripeService {
 
     if (parsed.hasScheme) {
       final scheme = parsed.scheme.toLowerCase();
-      return (scheme == 'http' || scheme == 'https')
-          ? parsed.toString()
-          : null;
+      return (scheme == 'http' || scheme == 'https') ? parsed.toString() : null;
     }
 
     if (protocolRelative.startsWith('/')) {
@@ -41,12 +39,12 @@ class StripeService {
   }
 
   /// Resuelve el color real de la variante en product_variants para un item del carrito.
-  /// 
+  ///
   /// El carrito almacena colores de product_images (ej. "brown", "Rojo"),
   /// pero product_variants puede tener color = '' (vacío).
   /// El backend valida stock con product_variants.color, por lo que debemos
   /// enviar el color exacto de la variante, no el de la imagen.
-  /// 
+  ///
   /// Usa stockBySizeColor del API de stock para encontrar la clave correcta.
   /// Las claves son "S" (color='') o "S|red" (color='red').
   static Future<Map<String, String>> _resolveVariantColors(
@@ -90,7 +88,9 @@ class StripeService {
           }
           productSizeColorMap[item.productId] = sizeColorMap;
         } catch (e) {
-          debugPrint('[Checkout] Error resolviendo color para ${item.productId}: $e');
+          debugPrint(
+            '[Checkout] Error resolviendo color para ${item.productId}: $e',
+          );
           productSizeColorMap[item.productId] = {};
         }
       }
@@ -153,7 +153,9 @@ class StripeService {
 
       // Preparar descuento si existe
       Map<String, dynamic>? discount;
-      if (discountCode != null && discountType != null && discountValue != null) {
+      if (discountCode != null &&
+          discountType != null &&
+          discountValue != null) {
         discount = {
           'code': discountCode,
           'type': discountType,
@@ -179,10 +181,7 @@ class StripeService {
         'url': result['url'],
       };
     } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -207,10 +206,7 @@ class StripeService {
         'orderNumber': result['orderNumber'],
       };
     } catch (e) {
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
     }
   }
 }

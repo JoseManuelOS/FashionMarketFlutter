@@ -19,8 +19,7 @@ class AdminCategoriesScreen extends ConsumerStatefulWidget {
       _AdminCategoriesScreenState();
 }
 
-class _AdminCategoriesScreenState
-    extends ConsumerState<AdminCategoriesScreen> {
+class _AdminCategoriesScreenState extends ConsumerState<AdminCategoriesScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -31,7 +30,8 @@ class _AdminCategoriesScreenState
   }
 
   List<Map<String, dynamic>> _filterCategories(
-      List<Map<String, dynamic>> categories) {
+    List<Map<String, dynamic>> categories,
+  ) {
     if (_searchQuery.isEmpty) return categories;
     final query = _searchQuery.toLowerCase();
     return categories.where((cat) {
@@ -85,9 +85,7 @@ class _AdminCategoriesScreenState
             decoration: BoxDecoration(
               color: const Color(0xFF0D0D14),
               border: Border(
-                bottom: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.05),
-                ),
+                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
               ),
             ),
             child: TextField(
@@ -145,8 +143,7 @@ class _AdminCategoriesScreenState
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () =>
-                          ref.invalidate(adminCategoriesProvider),
+                      onPressed: () => ref.invalidate(adminCategoriesProvider),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Reintentar'),
                       style: ElevatedButton.styleFrom(
@@ -234,9 +231,7 @@ class _AdminCategoriesScreenState
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -270,11 +265,7 @@ class _AdminCategoriesScreenState
                           size: 28,
                         ),
                       )
-                    : Icon(
-                        Icons.category,
-                        color: Colors.grey[600],
-                        size: 28,
-                      ),
+                    : Icon(Icons.category, color: Colors.grey[600], size: 28),
               ),
               const SizedBox(width: 16),
 
@@ -294,12 +285,7 @@ class _AdminCategoriesScreenState
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Expanded(
-                          child: _buildMetaItem(
-                            Icons.link,
-                            '/$slug',
-                          ),
-                        ),
+                        Expanded(child: _buildMetaItem(Icons.link, '/$slug')),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildMetaItem(
@@ -313,10 +299,7 @@ class _AdminCategoriesScreenState
                       const SizedBox(height: 4),
                       Text(
                         description,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -359,8 +342,7 @@ class _AdminCategoriesScreenState
                       children: [
                         Icon(Icons.edit, color: AppColors.neonCyan, size: 18),
                         SizedBox(width: 8),
-                        Text('Editar',
-                            style: TextStyle(color: Colors.white)),
+                        Text('Editar', style: TextStyle(color: Colors.white)),
                       ],
                     ),
                   ),
@@ -370,8 +352,10 @@ class _AdminCategoriesScreenState
                       children: [
                         Icon(Icons.delete, color: Colors.red[400], size: 18),
                         const SizedBox(width: 8),
-                        Text('Eliminar',
-                            style: TextStyle(color: Colors.red[400])),
+                        Text(
+                          'Eliminar',
+                          style: TextStyle(color: Colors.red[400]),
+                        ),
                       ],
                     ),
                   ),
@@ -455,7 +439,11 @@ class _AdminCategoriesScreenState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber, color: Colors.amber, size: 20),
+                    const Icon(
+                      Icons.warning_amber,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -705,8 +693,7 @@ class _AdminCategoriesScreenState
                         if (name.isEmpty || slug.isEmpty) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
-                              content:
-                                  Text('Nombre y slug son obligatorios'),
+                              content: Text('Nombre y slug son obligatorios'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -717,12 +704,11 @@ class _AdminCategoriesScreenState
 
                         final description =
                             descriptionController.text.trim().isEmpty
-                                ? null
-                                : descriptionController.text.trim();
-                        final imageUrl =
-                            imageUrlController.text.trim().isEmpty
-                                ? null
-                                : imageUrlController.text.trim();
+                            ? null
+                            : descriptionController.text.trim();
+                        final imageUrl = imageUrlController.text.trim().isEmpty
+                            ? null
+                            : imageUrlController.text.trim();
                         final displayOrder =
                             int.tryParse(displayOrderController.text) ?? 0;
 
@@ -756,12 +742,13 @@ class _AdminCategoriesScreenState
                               content: Text(
                                 success
                                     ? isEditing
-                                        ? 'Categoría actualizada'
-                                        : 'Categoría creada'
+                                          ? 'Categoría actualizada'
+                                          : 'Categoría creada'
                                     : 'Error al guardar categoría',
                               ),
-                              backgroundColor:
-                                  success ? Colors.green : Colors.red,
+                              backgroundColor: success
+                                  ? Colors.green
+                                  : Colors.red,
                             ),
                           );
                         }
